@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0
+
+- **Scotland and Wales:** `property-calculators/land-tax` adds LBTT (with first-time buyer relief
+  and the Additional Dwelling Supplement) and LTT (main and higher rates), plus
+  `calculatePropertyTax` to pick the right tax for any UK country.
+- **Company stamp duty:** `calculateCompanyStampDuty` applies the flat 17% rate over £500,000, the
+  reliefs from it, and the higher rates otherwise.
+- **Affordability:** maximum loan and price from income multiples, and the income a price needs.
+- **Overpayments and remortgaging:** time and interest saved by overpaying, and the break-even on
+  switching deal.
+- **Cost of buying:** deposit, stamp duty and fees as one upfront figure.
+- **Buy-to-let check:** the interest cover ratio lenders use, the maximum loan and minimum rent.
+- **Price per square foot:** price or rent per sq ft and per sq m, with a comparison helper.
+- **Tenant deposit caps:** the Tenant Fees Act limits on tenancy deposits, holding deposits and
+  rent in advance in England.
+
 ## 1.2.0
 
 - **Branded PDFs:** `property-calculators/pdf` prints any calculator's result as a one-page PDF

@@ -1,6 +1,7 @@
 export * from './api';
 export * from './bands/index';
 export * from './calculate';
+export * from './company';
 export * from './estimate';
 export * from './format';
 export * from './labels';

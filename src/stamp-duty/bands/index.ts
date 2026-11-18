@@ -22,7 +22,7 @@ export const BAND_TABLES = {
     secondHomeNonUkResident,
 } as const;
 
-/** Where SDLT applies. Scotland (LBTT) and Wales (LTT) are not covered. */
+/** Where SDLT applies. Scotland (LBTT) and Wales (LTT) are in `land-tax`. */
 export const SDLT_JURISDICTION = 'England and Northern Ireland';
 
 /** The date the thresholds in these tables came into force. Update alongside the tables. */

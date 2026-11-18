@@ -1,10 +1,19 @@
 'use client';
 
 import {
+    AffordabilityCalculator,
+    BuyingCostsCalculator,
+    BuyToLetCalculator,
+    CompanyStampDutyCalculator,
     DeskCalculator,
     MortgageCalculator,
+    OverpaymentCalculator,
+    PricePerAreaCalculator,
+    PropertyTaxCalculator,
+    RemortgageCalculator,
     RentalYieldCalculator,
     StampDutyCalculator,
+    TenantDepositCalculator,
 } from 'property-calculators/react';
 import { type CSSProperties, useState } from 'react';
 
@@ -47,7 +56,7 @@ export default function ComponentsDemo() {
                 <h1>Ready-made components</h1>
                 <p>
                     Imported from <code>property-calculators/react</code> with no CSS file and no setup. Switch the look
-                    to see the same three components themed. <a href="/">Back to the build-your-own demo</a>
+                    to see every component themed. <a href="/">Back to the build-your-own demo</a>
                 </p>
                 <div className="segmented" role="group" aria-label="Look">
                     {(Object.keys(LOOKS) as Look[]).map((key) => (
@@ -72,6 +81,88 @@ export default function ComponentsDemo() {
             <section>
                 <h2>{'<RentalYieldCalculator />'}</h2>
                 <RentalYieldCalculator defaultPrice={400_000} defaultRent={2_000} pdf={BRAND} {...props} />
+            </section>
+
+            <section>
+                <h2>{'<PropertyTaxCalculator />'}</h2>
+                <PropertyTaxCalculator defaultCountry="scotland" defaultPrice={300_000} pdf={BRAND} {...props} />
+            </section>
+
+            <section>
+                <h2>{'<CompanyStampDutyCalculator />'}</h2>
+                <CompanyStampDutyCalculator defaultPrice={750_000} pdf={BRAND} {...props} />
+            </section>
+
+            <section>
+                <h2>{'<AffordabilityCalculator />'}</h2>
+                <AffordabilityCalculator
+                    defaultIncome={45_000}
+                    defaultSecondIncome={30_000}
+                    defaultDeposit={50_000}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<OverpaymentCalculator />'}</h2>
+                <OverpaymentCalculator
+                    defaultBalance={200_000}
+                    defaultRate={5}
+                    defaultMonthlyOverpayment={200}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<RemortgageCalculator />'}</h2>
+                <RemortgageCalculator
+                    defaultBalance={200_000}
+                    defaultCurrentRate={5.5}
+                    defaultNewRate={4.5}
+                    defaultProductFee={999}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<BuyingCostsCalculator />'}</h2>
+                <BuyingCostsCalculator
+                    defaultPrice={300_000}
+                    defaultDeposit={30_000}
+                    defaultFees={{ legalFees: 1_500, survey: 500, removals: 800 }}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<BuyToLetCalculator />'}</h2>
+                <BuyToLetCalculator
+                    defaultRent={1_200}
+                    defaultPrice={250_000}
+                    defaultDeposit={62_500}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<PricePerAreaCalculator />'}</h2>
+                <PricePerAreaCalculator
+                    defaultAmount={1_000_000}
+                    defaultArea={800}
+                    defaultComparable={1_150}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<TenantDepositCalculator />'}</h2>
+                <TenantDepositCalculator defaultRent={1_200} defaultProposedDeposit={1_500} pdf={BRAND} {...props} />
             </section>
 
             <section>

@@ -1,4 +1,11 @@
 export * from './stamp-duty/index';
+export * from './land-tax/index';
 export * from './mortgage/index';
+export * from './affordability/index';
+export * from './buy-to-let/index';
+export * from './overpayment/index';
+export * from './buying-costs/index';
 export * from './rental-yield/index';
+export * from './price-per-area/index';
+export * from './tenant-deposit/index';
 export * as calculator from './calculator/index';

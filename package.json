@@ -1,6 +1,6 @@
 {
     "name": "property-calculators",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "UK stamp duty (SDLT), mortgage, rental yield and property desk-calculator logic, with branded PDF output. Headless core with no dependencies, plus optional ready-made React components.",
     "keywords": [
         "stamp duty",
@@ -78,6 +78,76 @@
             "require": {
                 "types": "./dist/rental-yield/index.d.cts",
                 "default": "./dist/rental-yield/index.cjs"
+            }
+        },
+        "./land-tax": {
+            "import": {
+                "types": "./dist/land-tax/index.d.ts",
+                "default": "./dist/land-tax/index.js"
+            },
+            "require": {
+                "types": "./dist/land-tax/index.d.cts",
+                "default": "./dist/land-tax/index.cjs"
+            }
+        },
+        "./price-per-area": {
+            "import": {
+                "types": "./dist/price-per-area/index.d.ts",
+                "default": "./dist/price-per-area/index.js"
+            },
+            "require": {
+                "types": "./dist/price-per-area/index.d.cts",
+                "default": "./dist/price-per-area/index.cjs"
+            }
+        },
+        "./tenant-deposit": {
+            "import": {
+                "types": "./dist/tenant-deposit/index.d.ts",
+                "default": "./dist/tenant-deposit/index.js"
+            },
+            "require": {
+                "types": "./dist/tenant-deposit/index.d.cts",
+                "default": "./dist/tenant-deposit/index.cjs"
+            }
+        },
+        "./affordability": {
+            "import": {
+                "types": "./dist/affordability/index.d.ts",
+                "default": "./dist/affordability/index.js"
+            },
+            "require": {
+                "types": "./dist/affordability/index.d.cts",
+                "default": "./dist/affordability/index.cjs"
+            }
+        },
+        "./buy-to-let": {
+            "import": {
+                "types": "./dist/buy-to-let/index.d.ts",
+                "default": "./dist/buy-to-let/index.js"
+            },
+            "require": {
+                "types": "./dist/buy-to-let/index.d.cts",
+                "default": "./dist/buy-to-let/index.cjs"
+            }
+        },
+        "./buying-costs": {
+            "import": {
+                "types": "./dist/buying-costs/index.d.ts",
+                "default": "./dist/buying-costs/index.js"
+            },
+            "require": {
+                "types": "./dist/buying-costs/index.d.cts",
+                "default": "./dist/buying-costs/index.cjs"
+            }
+        },
+        "./overpayment": {
+            "import": {
+                "types": "./dist/overpayment/index.d.ts",
+                "default": "./dist/overpayment/index.js"
+            },
+            "require": {
+                "types": "./dist/overpayment/index.d.cts",
+                "default": "./dist/overpayment/index.cjs"
             }
         },
         "./pdf": {

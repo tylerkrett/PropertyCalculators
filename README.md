@@ -48,6 +48,13 @@ estimate.bands[2].formatted;      // { range: "£250,001 – £925,000", rate: "
 | **[Stamp duty](#stamp-duty)** | SDLT for home movers, first-time buyers, additional properties and non-UK residents, with the band-by-band breakdown. Also [new leases](#new-leases), [non-residential property](#non-residential-and-mixed-use) and [replacing a main home](#replacing-a-main-residence). | `property-calculators` |
 | **[Mortgage](#mortgage)** | Monthly payment, total interest, loan to value, and the cash you need upfront with stamp duty included. | `property-calculators/mortgage` |
 | **[Rental yield](#rental-yield)** | Gross and net yield on a buy-to-let, with stamp duty, empty weeks and running costs counted. One property or a portfolio. | `property-calculators/rental-yield` |
+| **[Scotland and Wales](#scotland-and-wales)** | LBTT and LTT with the same breakdown, and one call that picks the right tax for any UK country. | `property-calculators/land-tax` |
+| **[Affordability](#affordability)** | How much someone can borrow from their income, and the income a price needs. | `property-calculators/affordability` |
+| **[Overpayments and remortgaging](#overpayments-and-remortgaging)** | Time and interest saved by overpaying, and whether switching deal pays for itself. | `property-calculators/overpayment` |
+| **[Cost of buying](#cost-of-buying)** | Deposit, stamp duty and fees as one upfront figure, item by item. | `property-calculators/buying-costs` |
+| **[Buy-to-let check](#buy-to-let-check)** | Whether the rent covers the loan the way lenders test it. | `property-calculators/buy-to-let` |
+| **[Price per square foot](#price-per-square-foot)** | Price or rent per sq ft and per sq m, and how it compares with the local average. | `property-calculators/price-per-area` |
+| **[Tenant deposit caps](#tenant-deposit-caps)** | The legal maximum tenancy deposit, holding deposit and rent in advance in England. | `property-calculators/tenant-deposit` |
 | **[Desk calculator](#desk-calculator)** | A pocket calculator that also does VAT, rent per week ↔ per month, ft² ↔ m², and £ ↔ € or $. | `property-calculators/calculator` |
 | **[React components](#react-components)** | Each calculator as a drop-in component, styled by default and themeable. Optional. | `property-calculators/react` |
 | **[Branded PDFs](#branded-pdfs)** | Any result as a one-page PDF with your logo, colour and footer. No PDF library needed. | `property-calculators/pdf` |
@@ -66,15 +73,15 @@ estimate.bands[2].formatted;      // { range: "£250,001 – £925,000", rate: "
 </table>
 
 - **Headless core.** Works with React, Vue, Svelte, a server template, a CLI or a spreadsheet export.
-- **Zero dependencies.** About 11 kB gzipped for the calculators, less if you import one; PDFs are a separate 7 kB that loads only when used. React is only needed if you use the components.
+- **Zero dependencies.** About 20 kB minified and gzipped for every calculator, 7 kB for stamp duty alone; PDFs are a separate 8 kB that loads only when used. React is only needed if you use the components.
 - **Runs anywhere.** Node 18+, browsers, edge runtimes, React Native. ESM and CommonJS, fully typed.
 - **Plain JSON out.** Stamp duty and mortgage results cross an API or a server-to-client boundary untouched.
 - **Deterministic.** No `Intl`, no locale lookups: the server and the browser always print the same string.
 
 > [!IMPORTANT]
 > Results are estimates, not tax or financial advice. "Stamp duty" here is SDLT, which applies in
-> **England and Northern Ireland**. Scotland (LBTT) and Wales (LTT) have their own taxes and are
-> not covered. See [what it doesn't cover](#what-it-doesnt-cover).
+> **England and Northern Ireland**. Scotland (LBTT) and Wales (LTT) have their own taxes: use
+> [`calculatePropertyTax`](#scotland-and-wales) for those. See [what it doesn't cover](#what-it-doesnt-cover).
 
 ## See it running
 
@@ -711,13 +718,64 @@ getRefundDeadlines({ purchaseDate: '2025-06-10', saleDate: '2026-02-01' });
 
 <p align="center"><img alt="The four buyer questions with their answers, the explanation that higher rates apply but can be claimed back, the refund of £30,000, and the deadlines" src="assets/feature-main-residence.png" width="640"><br/><sub>The whole journey: questions from <code>BUYER_QUESTIONS</code>, the outcome from <code>resolveBuyer</code>, the refund and its dates</sub></p>
 
+### Companies
+
+A company buying a home pays differently. Over £500,000 it is a flat 17% of the whole price,
+unless a relief applies (a property rental business, a developer and so on). Otherwise it pays the
+additional-property rates, even on its first property.
+
+```ts
+import { calculateCompanyStampDuty, COMPANY_RELIEFS } from 'property-calculators';
+
+const tax = calculateCompanyStampDuty({ price: 750_000 });
+
+tax.stampDuty;        // 127500
+tax.applied.flatRate; // true
+tax.notes;            // ["A company buying a dwelling for more than £500,000 pays a flat 17% on the whole price."]
+
+calculateCompanyStampDuty({ price: 750_000, relief: 'property-rental-business' }).stampDuty; // 65000
+```
+
+`COMPANY_RELIEFS` lists the seven reliefs with labels for a dropdown. A non-UK resident company
+pays 2 points more (19% flat). The result has the same shape as any other estimate, plus
+`applied` and `notes`.
+
+### Scotland and Wales
+
+Scotland charges LBTT and Wales charges LTT, each with its own bands. `calculatePropertyTax`
+picks the right one from the country, so one form can serve the whole UK.
+
+```ts
+import { calculatePropertyTax, COUNTRIES } from 'property-calculators/land-tax';
+
+const tax = calculatePropertyTax({ country: 'scotland', price: 300_000, buyer: 'additional-property' });
+
+tax.tax;               // "LBTT"
+tax.bandTax;           // 4600   from the bands
+tax.supplement.amount; // 24000  Additional Dwelling Supplement: 8% of the whole price
+tax.total;             // 28600
+tax.formatted.total;   // "£28,600"
+```
+
+The same £350,000 first home costs a different amount in each country:
+
+| Country | Tax | First-time buyer pays |
+| --- | --- | ---: |
+| England, Northern Ireland | SDLT | £2,500 |
+| Scotland | LBTT | £7,750 |
+| Wales | LTT | £7,500 |
+
+Where a country has no equivalent of something you asked for, `tax.notes` says so: Wales has no
+first-time buyer relief, and neither Scotland nor Wales has a non-UK resident surcharge. The rate
+tables are exported as `LBTT_BAND_TABLES` and `LTT_BAND_TABLES`. Leases are SDLT only for now.
+
 ### What it doesn't cover
 
 The calculator handles one person or couple buying a home, a new lease, or non-residential
 property. It does not model:
 
-- Scotland or Wales
-- Purchases by companies (including the flat 17% rate on homes over £500,000)
+- Leases in Scotland or Wales (purchases are [covered](#scotland-and-wales))
+- The conditions for each company relief, or a company buying a new lease
 - Shared ownership and linked transactions
 - Rates before 1 April 2025
 - Rent under an assured tenancy, which is excluded from the rent charge from 1 May 2026
@@ -783,6 +841,127 @@ for a pounds-or-percent deposit field, and `calculateMortgage` if you only want 
 
 ---
 
+## Affordability
+
+A first answer to "how much can I borrow?", from income multiples. An illustration, not a
+lender's decision.
+
+```ts
+import { getAffordabilitySummary, calculateIncomeNeeded } from 'property-calculators/affordability';
+
+const { summary, error } = getAffordabilitySummary({
+  income: 45_000,
+  secondIncome: 30_000,
+  monthlyCommitments: 400, // loans and credit cards
+  deposit: 50_000,
+  rate: 4.5,
+  termYears: 30,
+});
+
+summary.formatted.maxLoan;         // "£315,900"   4.5 times income after commitments
+summary.formatted.maxPrice;        // "£365,900"
+summary.formatted.monthlyPayment;  // "£1,600.62"
+summary.formatted.stressedPayment; // "£2,208.82"  if rates rose 3 points
+summary.formatted.cashUpfront;     // "£58,295"    deposit plus stamp duty
+summary.rows;                      // every figure, labelled, in display order
+```
+
+The multiple (default 4.5) and the stress buffer (default 3 points) are yours to set. Going the
+other way, `calculateIncomeNeeded({ price: 365_900, deposit: 50_000, monthlyCommitments: 400 })`
+gives the income a price needs: `£75,000`.
+
+## Overpayments and remortgaging
+
+What paying extra does to a repayment mortgage:
+
+```ts
+import { getOverpaymentSummary, getRemortgageSummary } from 'property-calculators/overpayment';
+
+const { summary } = getOverpaymentSummary({
+  balance: 200_000,
+  rate: 5,
+  termYears: 25,
+  monthlyOverpayment: 200,
+  lumpSum: 10_000,
+});
+
+summary.formatted.interestSaved; // "£56,501"
+summary.formatted.monthsSaved;   // "7 years 8 months"
+summary.formatted.monthsAfter;   // "17 years 4 months"
+```
+
+Pass `includeSchedule: true` for year-by-year balances, with and without the overpayment, ready
+for a chart.
+
+And whether a new deal is worth its fees:
+
+```ts
+const { summary } = getRemortgageSummary({
+  balance: 200_000,
+  currentRate: 5.5,
+  newRate: 4.5,
+  termYears: 25,
+  productFee: 999,
+  earlyRepaymentCharge: 1_000,
+});
+
+summary.formatted.monthlySaving;   // "£116.51"
+summary.formatted.switchingCost;   // "£1,999"
+summary.formatted.breakEvenMonths; // "1 year 1 month"
+summary.formatted.netSaving;       // "£1,978"  over the new deal's first 2 years
+```
+
+Break-even counts the interest saved, not just the lower payment, so a fee added to the loan
+(`feePayment: 'add-to-loan'`) is still counted in full. It reads `"Never"` when the switch doesn't
+pay for itself.
+
+## Cost of buying
+
+Everything a buyer needs in the bank on completion day, item by item.
+
+```ts
+import { getBuyingCostsSummary } from 'property-calculators/buying-costs';
+
+const { summary } = getBuyingCostsSummary({
+  price: 300_000,
+  deposit: 30_000,
+  legalFees: 1_500,
+  survey: 500,
+  removals: 800,
+});
+
+summary.formatted.cashUpfront; // "£37,800"
+summary.formatted.stampDuty;   // "£5,000"   worked out for you
+summary.items;                 // Deposit £30,000 (79.37%), Stamp duty £5,000 (13.23%), Legal fees £1,500 (3.97%)…
+```
+
+Fees default to £0: the package doesn't guess what a solicitor charges. `extras` takes any other
+costs as `{ label, amount }`.
+
+## Buy-to-let check
+
+Lenders size a buy-to-let loan by whether the rent covers the interest at a stressed rate.
+
+```ts
+import { getBuyToLetSummary } from 'property-calculators/buy-to-let';
+
+const { summary } = getBuyToLetSummary({
+  rent: 1_200,
+  price: 250_000,
+  deposit: 62_500,
+  borrower: 'higher-rate',
+});
+
+summary.verdict;              // "Falls short"
+summary.formatted.coverRatio; // "139.64%"   145% required
+summary.formatted.maxLoan;    // "£180,564"  the most this rent supports
+summary.formatted.minRent;    // "£1,246.10" the rent this loan needs
+```
+
+The defaults are market conventions, not law: a 5.5% stress rate (the Bank of England's minimum
+for most loans) and cover of 125% for basic-rate taxpayers and companies, 145% for higher-rate
+taxpayers. Every lender differs, so `stressRate` and `coverRatio` can be set directly.
+
 ## Rental yield
 
 For a buy-to-let: what the rent returns on what the property really costs.
@@ -839,6 +1018,49 @@ getPortfolioYield([
 maths alone, and `RENT_PERIODS` the options for a select.
 
 ---
+
+## Price per square foot
+
+The figure that makes two listings comparable.
+
+```ts
+import { getPricePerAreaSummary, pricePerAreaFor, comparePricePerArea } from 'property-calculators/price-per-area';
+
+const listing = { amount: 1_000_000, area: 800, areaUnit: 'sqft' } as const;
+
+getPricePerAreaSummary(listing).summary.formatted;
+// { perSqFt: "£1,250 per sq ft", perSqM: "£13,455 per sq m", areaSqM: "74.32 sq m", … }
+
+pricePerAreaFor(500_000, 100, 'sqm'); // 464.52: the number alone, or null, for a listing card
+
+comparePricePerArea(listing, { perArea: 1_150, unit: 'sqft' }).formatted.sentence;
+// "8.7% above the comparable average"
+```
+
+Add `rentPeriod` (`'week'`, `'month'` or `'year'`) and the amount is treated as rent, giving rent
+per square foot per year.
+
+## Tenant deposit caps
+
+The most a landlord or agent in England may take, under the Tenant Fees Act 2019.
+
+```ts
+import { getTenantDepositSummary, checkTenantDeposit } from 'property-calculators/tenant-deposit';
+
+const { summary } = getTenantDepositSummary({ rent: 1_200 }); // per month by default
+
+summary.formatted.maxTenancyDeposit; // "£1,384.61"  five weeks' rent
+summary.formatted.maxHoldingDeposit; // "£276.92"    one week's rent
+summary.formatted.maxRentInAdvance;  // "£1,200.00"  one month
+
+checkTenantDeposit({ rent: 1_200 }, 1_500).formatted.sentence;
+// "£1,500.00 is £115.39 over the £1,384.61 cap"
+```
+
+The cap is five weeks' rent, or six when the rent is £50,000 a year or more. Maximums are rounded
+down to the penny, because anything over the cap is a prohibited payment. Rents above £100,000 a
+year are outside the Act and return an error. Wales, Scotland and Northern Ireland have different
+rules and are not covered.
 
 ## Desk calculator
 
@@ -1095,6 +1317,57 @@ Types: `MortgageInput`, `MortgageSummaryInput`, `MortgageResult`, `MortgageSumma
 | `RENT_PERIODS`, `RENTAL_YIELD_DEFAULTS`, `RENTAL_YIELD_LABELS` | Options, defaults and labels. |
 
 Types: `RentalYieldInput`, `RentalYield`, `RentalYieldSummary`, `PortfolioYield`, `RentPeriod`.
+
+</details>
+
+<details>
+<summary><b>Scotland, Wales and companies</b></summary>
+
+| Export | Description |
+| --- | --- |
+| `calculatePropertyTax({ country, ... })` | SDLT, LBTT or LTT for any UK country, in one result shape with `notes`. |
+| `calculateLbtt(input)`, `calculateLtt(input)` | Scotland and Wales directly. |
+| `COUNTRIES`, `isCountry`, `PROPERTY_TAX_NAMES` | Country options with each one's tax, a type guard, and full tax names. |
+| `LBTT_BAND_TABLES`, `LTT_BAND_TABLES`, `LBTT_EFFECTIVE_FROM`, `LTT_EFFECTIVE_FROM` | The rate tables and the dates they took effect. |
+| `LBTT_ADS_RATE`, `LBTT_FIRST_TIME_BUYER_NIL_BAND`, `LTT_HIGHER_RATES_THRESHOLD` | The headline figures. |
+| `calculateCompanyStampDuty(input)` | SDLT for a company: flat rate or higher rates, with `applied` and `notes`. |
+| `COMPANY_RELIEFS`, `isCompanyRelief`, `COMPANY_FLAT_RATE`, `COMPANY_FLAT_RATE_THRESHOLD` | Relief options and the flat-rate figures. |
+
+Types: `Country`, `PropertyTaxInput`, `PropertyTaxEstimate`, `PropertyTaxSupplement`,
+`CompanyStampDutyInput`, `CompanyStampDuty`, `CompanyRelief`.
+
+</details>
+
+<details>
+<summary><b>Affordability, overpayments, buying costs, buy-to-let</b></summary>
+
+| Export | Description |
+| --- | --- |
+| `getAffordabilitySummary(input)`, `calculateAffordability(input)` | Maximum loan and price, payments, stamp duty and cash upfront. |
+| `calculateIncomeNeeded(input)` | The income a price and deposit need. |
+| `getOverpaymentSummary(input)`, `calculateOverpayment(input)` | Time and interest saved; optional yearly schedule. |
+| `getRemortgageSummary(input)`, `calculateRemortgage(input)` | Payments on each deal, switching cost, break-even and net saving. |
+| `formatDuration(months)` | `"3 years 4 months"`. |
+| `getBuyingCostsSummary(input)`, `calculateBuyingCosts(input)` | Cash needed upfront and total cost, item by item. |
+| `getBuyToLetSummary(input)`, `calculateBuyToLet(input)` | Interest cover ratio, verdict, maximum loan and minimum rent. |
+| `affordabilityInputError`, `incomeNeededInputError`, `overpaymentInputError`, `remortgageInputError`, `buyingCostsInputError`, `buyToLetInputError` | The reason an input can't be calculated, or `null`. |
+| `AFFORDABILITY_*`, `OVERPAYMENT_*`, `REMORTGAGE_*`, `BUYING_COSTS_*`, `BUY_TO_LET_*` (`DEFAULTS`, `LIMITS`, `LABELS`) | Defaults, bounds and labels for each. |
+| `BORROWER_TYPES`, `PRA_MINIMUM_STRESS_RATE`, `FEE_PAYMENTS`, `BUYING_COST_FEES` | Options for dropdowns. |
+
+</details>
+
+<details>
+<summary><b>Price per area and tenant deposits</b></summary>
+
+| Export | Description |
+| --- | --- |
+| `getPricePerAreaSummary(input)`, `calculatePricePerArea(input)` | Price or annual rent per sq ft and per sq m. |
+| `pricePerAreaFor(amount, area, unit?, options?)` | The number alone, or `null`: for listing cards. |
+| `comparePricePerArea(input, comparable)` | Difference from a comparable average, in pounds and percent. |
+| `AREA_UNITS`, `SQFT_PER_SQM`, `PRICE_PER_AREA_LABELS` | Units, the conversion factor and labels. |
+| `getTenantDepositSummary(input)`, `calculateTenantDeposit(input)` | Maximum tenancy deposit, holding deposit and rent in advance. |
+| `checkTenantDeposit(input, proposed, kind?)` | Whether a proposed amount is within the cap, and by how much it is over. |
+| `TENANT_DEPOSIT_RULES`, `TENANT_DEPOSIT_JURISDICTION`, `TENANT_DEPOSIT_LABELS` | The thresholds with their sources, where they apply, and labels. |
 
 </details>
 

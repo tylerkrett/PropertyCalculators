@@ -1,3 +1,12 @@
+export * from './PropertyTaxCalculator';
+export * from './CompanyStampDutyCalculator';
+export * from './AffordabilityCalculator';
+export * from './BuyToLetCalculator';
+export * from './OverpaymentCalculator';
+export * from './RemortgageCalculator';
+export * from './BuyingCostsCalculator';
+export * from './PricePerAreaCalculator';
+export * from './TenantDepositCalculator';
 export { DeskCalculator, type DeskCalculatorProps } from './DeskCalculator';
 export { MortgageCalculator, type MortgageCalculatorProps } from './MortgageCalculator';
 export { RentalYieldCalculator, type RentalYieldCalculatorProps } from './RentalYieldCalculator';
