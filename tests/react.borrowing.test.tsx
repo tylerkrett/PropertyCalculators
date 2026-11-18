@@ -93,9 +93,9 @@ describe('BuyToLetCalculator', () => {
     it('renders the verdict and the rows from its defaults', () => {
         const markup = html(<BuyToLetCalculator {...letting} defaultBorrower="higher-rate" />);
         expect(markup).toContain(
-            '<p class="pc-hint" role="status">Falls short: the rent covers the stressed interest by 139.64%, and the lender needs 145%.</p>',
+            '<p class="pc-hint" role="status">Falls short: the rent covers the stressed interest by 139.63%, and the lender needs 145%.</p>',
         );
-        expect(markup).toContain('data-lead="true"><dt>Interest cover ratio</dt><dd>139.64%</dd>');
+        expect(markup).toContain('data-lead="true"><dt>Interest cover ratio</dt><dd>139.63%</dd>');
         expect(markup).toContain('<dt>Loan amount</dt><dd>£187,500</dd>');
         expect(markup).toContain('<dt>Monthly interest at the stress rate</dt><dd>£859.38</dd>');
         expect(markup).toContain('<dt>Minimum rent per month for the loan</dt><dd>£1,246.10</dd>');
@@ -107,7 +107,7 @@ describe('BuyToLetCalculator', () => {
 
     it('passes a basic-rate borrower on the same figures, and reads weekly rent', () => {
         const basic = html(<BuyToLetCalculator {...letting} />);
-        expect(basic).toContain('Passes: the rent covers the stressed interest by 139.64%, and the lender needs 125%.');
+        expect(basic).toContain('Passes: the rent covers the stressed interest by 139.63%, and the lender needs 125%.');
         expect(basic).toContain('<dt>Rent headroom per month</dt>');
         const weekly = html(<BuyToLetCalculator {...letting} defaultRent={300} defaultRentPeriod="week" />);
         expect(weekly).toContain('<dt>Rent per month</dt><dd>£1,300.00</dd>');

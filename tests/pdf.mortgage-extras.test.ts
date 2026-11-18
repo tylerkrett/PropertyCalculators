@@ -78,7 +78,7 @@ describe('remortgagePdf', () => {
             { label: 'Early repayment charge', value: '£1,000' },
             { label: 'Fixed period', value: '2 years' },
             { label: 'Cost of switching', value: '£1,999' },
-            { label: 'Time to break even', value: '1 year 1 month' },
+            { label: 'Time until interest saved covers the cost', value: '1 year 1 month' },
         ])
             expect(report.facts).toContainEqual(fact);
         expect(report.notes).toHaveLength(1);

@@ -1,4 +1,4 @@
-import { calculateStampDuty, MAX_PRICE, type BuyerType } from '../stamp-duty/estimate';
+import { calculateStampDuty, isBuyerType, MAX_PRICE, type BuyerType } from '../stamp-duty/estimate';
 import { formatPounds, formatPoundsAndPence, formatRate } from '../stamp-duty/format';
 
 /*
@@ -65,7 +65,11 @@ const pence = (n: number) => Math.round(n * 100) / 100;
  * the end. Returns `null` for input `mortgageInputError` rejects.
  */
 export function calculateMortgage(input: MortgageInput): MortgageResult | null {
-    if (mortgageInputError(input)) return null;
+    return mortgageInputError(input) ? null : mortgageFor(input);
+}
+
+/** The payment and totals for an input `mortgageInputError` has already passed; it is not checked again. */
+export function mortgageFor(input: MortgageInput): MortgageResult {
     const { price, deposit, rate, termYears, type } = input;
     const loan = price - deposit;
     const months = termYears * 12;
@@ -134,9 +138,11 @@ export { MORTGAGE_LABELS };
 export function getMortgageSummary(
     input: MortgageSummaryInput,
 ): { summary: MortgageSummary; error: null } | { summary: null; error: string } {
-    const error = mortgageInputError(input);
-    const result = error ? null : calculateMortgage(input);
-    if (error || !result) return { summary: null, error: error ?? 'Enter the property price.' };
+    const error =
+        mortgageInputError(input) ??
+        (input.buyer !== undefined && !isBuyerType(input.buyer) ? 'Choose the type of buyer.' : null);
+    if (error) return { summary: null, error };
+    const result = mortgageFor(input);
 
     const stampDuty = calculateStampDuty({
         price: input.price,

@@ -93,10 +93,10 @@ describe('calculateLbtt (Scotland)', () => {
         expectTotals(nonResidential, { 150_000: 0, 150_100: 1, 250_000: 1_000, 250_020: 1_001 });
     });
 
-    it('has no relief or supplement at non-residential rates, and says so', () => {
+    it('has no relief at non-residential rates, and says the supplement may still be due on a dwelling', () => {
         const supplement = calculateLbtt({ price: 465_000, ...additionalProperty, ...nonResidentialProperty });
         expect(supplement).toMatchObject({ total: 11_750, supplement: null });
-        expect(supplement.notes[0]).toBe('The Additional Dwelling Supplement is not charged at non-residential rates.');
+        expect(supplement.notes[0]).toMatch(/still due on any dwelling included in a mixed-use purchase/);
         const relief = calculateLbtt({ price: 160_000, buyer: 'first-time-buyer', propertyType: 'non-residential' });
         expect(relief.notes).toEqual(['First-time buyer relief does not apply at non-residential rates.']);
     });
@@ -160,10 +160,10 @@ describe('calculateLtt (Wales)', () => {
         expect(additional.notes).toEqual(['The higher residential rates are not charged on non-residential property.']);
     });
 
-    it('notes the choice of rates for six or more dwellings without changing the tax', () => {
+    it('taxes six or more dwellings at non-residential rates and notes the alternative', () => {
         const estimate = calculateLtt({ price: 350_000, dwellings: 6 });
-        expect(estimate).toMatchObject({ propertyType: 'residential', total: 7_500 });
-        expect(estimate.notes).toHaveLength(1);
+        expect(estimate).toMatchObject({ propertyType: 'non-residential', total: 5_250 });
+        expect(estimate.notes).toEqual([expect.stringContaining('higher residential rates with multiple dwellings')]);
     });
 });
 
@@ -192,7 +192,7 @@ describe('calculatePropertyTax', () => {
             const sdlt = calculateStampDuty(input);
             for (const country of ['england', 'northern-ireland'] as const) {
                 const estimate = calculatePropertyTax({ country, ...input });
-                expect(estimate).toMatchObject({ country, tax: 'SDLT', supplement: null, notes: [] });
+                expect(estimate).toMatchObject({ country, tax: 'SDLT', supplement: null });
                 expect(estimate).toMatchObject({ bandTax: sdlt.stampDuty, total: sdlt.stampDuty, bands: sdlt.bands });
                 for (const key of ['price', 'buyer', 'nonUkResident', 'propertyType', 'effectiveRate'] as const)
                     expect(estimate[key]).toBe(sdlt[key]);

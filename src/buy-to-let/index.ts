@@ -74,7 +74,10 @@ export interface BuyToLet {
     requiredCoverRatio: number;
     /** A month's interest on the loan at the stress rate. */
     stressedInterest: number;
-    /** Interest coverage ratio achieved: monthly rent over stressed interest, percent to two decimals. */
+    /**
+     * Interest coverage ratio achieved: monthly rent over stressed interest, percent, rounded down to
+     * two decimals and kept on the same side of the required ratio as `passes`.
+     */
     coverRatio: number;
     /** Whether the rent covers the stressed interest by at least the required ratio. */
     passes: boolean;
@@ -82,7 +85,7 @@ export interface BuyToLet {
     maxLoan: number;
     /** The lowest monthly rent this loan needs, rounded up to the penny. */
     minRent: number;
-    /** Monthly rent above the minimum; negative is a shortfall. */
+    /** Monthly rent above the minimum; negative, by at least a penny, is a shortfall. Agrees with `passes`. */
     monthlyHeadroom: number;
     /** Loan to value, percent to two decimals; `null` without a price. */
     ltv: number | null;
@@ -115,6 +118,7 @@ export function buyToLetInputError(input: BuyToLetInput): string | null {
     const { stressRate: rates, coverRatio: ratios } = BUY_TO_LET_LIMITS;
     const { loan, stressRate, requiredCoverRatio, borrower, period } = resolve(input);
     if (!Number.isFinite(rent) || rent <= 0 || !period) return 'Enter the rent.';
+    if (rent > MAX_PRICE) return 'Enter a lower rent.';
     if (price !== undefined && (!Number.isFinite(price) || price <= 0 || price > MAX_PRICE))
         return 'Enter the property price.';
     if (input.loan === undefined) {
@@ -136,13 +140,23 @@ export function buyToLetInputError(input: BuyToLetInput): string | null {
  * cover achieved is monthly rent ÷ stressed interest, and it passes at or above the required ratio.
  */
 export function calculateBuyToLet(input: BuyToLetInput): BuyToLet | null {
-    if (buyToLetInputError(input)) return null;
+    return buyToLetInputError(input) ? null : checkCover(input);
+}
+
+/** The check for an input `buyToLetInputError` has already passed. */
+function checkCover(input: BuyToLetInput): BuyToLet {
     const { loan, monthlyRent, stressRate, requiredCoverRatio } = resolve(input);
     const interest = (loan * stressRate) / 100 / 12;
     // Unrounded, so the pass, the maximum loan and the minimum rent always agree with each other.
     const rentNeeded = (interest * requiredCoverRatio) / 100;
     const loanSupported = (monthlyRent * 12 * 10_000) / (stressRate * requiredCoverRatio);
     const minRent = Math.ceil(rentNeeded * 100 - EPSILON) / 100;
+    const passes = monthlyRent >= rentNeeded - EPSILON;
+    // The verdict is decided on unrounded figures; the rounded ones shown beside it must not
+    // contradict it at the boundary. A pass never shows a shortfall or cover below the requirement,
+    // and a fail always shows at least a penny short and cover at least 0.01 points under.
+    const gap = twoDecimals(twoDecimals(monthlyRent) - minRent);
+    const cover = Math.floor((monthlyRent / interest) * 10_000 + EPSILON) / 100;
 
     return {
         monthlyRent: twoDecimals(monthlyRent),
@@ -150,11 +164,13 @@ export function calculateBuyToLet(input: BuyToLetInput): BuyToLet | null {
         stressRate,
         requiredCoverRatio,
         stressedInterest: twoDecimals(interest),
-        coverRatio: twoDecimals((monthlyRent / interest) * 100),
-        passes: monthlyRent >= rentNeeded - EPSILON,
+        coverRatio: passes
+            ? Math.max(requiredCoverRatio, cover)
+            : Math.min(twoDecimals(requiredCoverRatio - 0.01), cover),
+        passes,
         maxLoan: Math.floor(loanSupported + EPSILON),
         minRent,
-        monthlyHeadroom: twoDecimals(monthlyRent - minRent),
+        monthlyHeadroom: passes ? Math.max(0, gap) : Math.min(-0.01, gap),
         ltv: input.price === undefined ? null : twoDecimals((loan / input.price) * 100),
     };
 }
@@ -173,7 +189,7 @@ export const BUY_TO_LET_LABELS = {
     ltv: 'Loan to value',
 } as const;
 
-/** The label for `monthlyHeadroom` when it is negative; the row then shows the gap as a positive amount. */
+/** The label for `monthlyHeadroom` when the check fails; the row then shows the gap as a positive amount. */
 export const BUY_TO_LET_SHORTFALL_LABEL = 'Rent shortfall per month';
 
 type BuyToLetKey = keyof typeof BUY_TO_LET_LABELS;
@@ -198,8 +214,8 @@ export function getBuyToLetSummary(
     input: BuyToLetInput,
 ): { summary: BuyToLetSummary; error: null } | { summary: null; error: string } {
     const error = buyToLetInputError(input);
-    const result = error ? null : calculateBuyToLet(input);
-    if (error || !result) return { summary: null, error: error ?? 'Enter the rent.' };
+    if (error) return { summary: null, error };
+    const result = checkCover(input);
 
     const keys = Object.keys(BUY_TO_LET_LABELS) as BuyToLetKey[];
     const format = (key: BuyToLetKey, value: number) =>
@@ -215,7 +231,7 @@ export function getBuyToLetSummary(
         return value === null ? null : format(key, value);
     };
     const formatted = Object.fromEntries(keys.map((key) => [key, text(key)])) as BuyToLetSummary['formatted'];
-    const short = result.monthlyHeadroom < 0;
+    const short = !result.passes;
 
     return {
         summary: {

@@ -88,14 +88,14 @@ describe('RemortgageCalculator', () => {
         expect(markup).toContain(row('Current monthly payment', '£1,228.17'));
         expect(markup).toContain(row('New monthly payment', '£1,111.66'));
         expect(markup).toContain(row('Cost of switching', '£1,999'));
-        expect(markup).toContain(row('Time to break even', '1 year 1 month'));
+        expect(markup).toContain(row('Time until interest saved covers the cost', '1 year 1 month'));
         expect(markup).toContain(row('New loan amount', '£200,000'));
         expect(markup).toContain('<option value="upfront" selected="">Paid upfront</option>');
     });
 
     it('borrows the fee when asked, and says when a dearer deal never pays back', () => {
         expect(html(finished({ defaultFeePayment: 'add-to-loan' }))).toContain(row('New loan amount', '£200,999'));
-        expect(html(finished({ defaultNewRate: 6 }))).toContain(row('Time to break even', 'Never'));
+        expect(html(finished({ defaultNewRate: 6 }))).toContain(row('Time until interest saved covers the cost', 'Never'));
     });
 
     it('shows the form error instead of results', () => {

@@ -75,7 +75,7 @@ describe('buyToLetPdf', () => {
     it('leads with the cover ratio, then the verdict and the inputs, then the other rows', () => {
         const report = buyToLetReport(input)!;
         expect(report.title).toBe('Buy-to-let mortgage check');
-        expect(report.headline).toEqual({ label: 'Interest cover ratio', value: '139.64%' });
+        expect(report.headline).toEqual({ label: 'Interest cover ratio', value: '139.63%' });
         expect(report.facts.slice(0, 6)).toEqual([
             { label: 'Result', value: 'Falls short' },
             { label: 'Rent', value: '£1,200 per month' },
@@ -103,7 +103,7 @@ describe('buyToLetPdf', () => {
         expect(body.startsWith('%PDF')).toBe(true);
         expect(body).toContain('(Buy-to-let mortgage check)');
         expect(body).toContain('(Interest cover ratio)');
-        expect(body).toContain('(139.64%)');
+        expect(body).toContain('(139.63%)');
         expect(body).toContain('(Falls short)');
         expect(body).toContain('(\\2431,200 per month)');
         expect(body).toContain('(\\243187,500)');

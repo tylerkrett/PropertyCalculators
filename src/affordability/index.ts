@@ -1,5 +1,5 @@
-import { calculateMortgage } from '../mortgage/index';
-import { type BuyerType, calculateStampDuty, MAX_PRICE } from '../stamp-duty/estimate';
+import { mortgageFor } from '../mortgage/index';
+import { type BuyerType, calculateStampDuty, isBuyerType, MAX_PRICE } from '../stamp-duty/estimate';
 import { formatPounds, formatPoundsAndPence, formatRate } from '../stamp-duty/format';
 import {
     AFFORDABILITY_DEFAULTS,
@@ -63,7 +63,7 @@ export interface Affordability {
     ltv: number;
     /** Monthly repayment on the maximum loan at the rate entered. */
     monthlyPayment: number;
-    /** The rate entered plus the stress buffer, percent. */
+    /** The rate entered plus the stress buffer, percent; not rounded, so 4.555 plus 3 is 7.555. */
     stressedRate: number;
     /** Monthly repayment on the maximum loan at the stressed rate. */
     stressedPayment: number;
@@ -82,7 +82,10 @@ function resolve(input: AffordabilityInput) {
     const totalIncome = input.income + amount(input.secondIncome);
     const countedIncome = totalIncome - amount(input.monthlyCommitments) * 12;
     const maxLoan = poundsDown(countedIncome * incomeMultiple);
-    return { incomeMultiple, stressBuffer, totalIncome, countedIncome, maxLoan, maxPrice: maxLoan + input.deposit };
+    // The exact sum, less floating-point noise: 4.555 + 3 is 7.555, not 7.56 and not 7.555000000000001.
+    const stressedRate = Math.round((input.rate + stressBuffer) * 1e9) / 1e9;
+    const maxPrice = maxLoan + input.deposit;
+    return { incomeMultiple, stressBuffer, stressedRate, totalIncome, countedIncome, maxLoan, maxPrice };
 }
 
 /** Why an input can't be calculated, worded for the form; `null` when it can. */
@@ -93,7 +96,7 @@ export function affordabilityInputError(input: AffordabilityInput): string | nul
     if (invalid(amount(input.secondIncome))) return "Enter the second applicant's yearly income, or leave it at 0.";
     if (invalid(amount(input.monthlyCommitments))) return COMMITMENTS_ERROR;
     if (invalid(deposit)) return 'Enter a deposit of £0 or more.';
-    const { incomeMultiple, stressBuffer, maxLoan, maxPrice } = resolve(input);
+    const { incomeMultiple, stressBuffer, stressedRate, maxLoan, maxPrice } = resolve(input);
     const multipleError = incomeMultipleError(incomeMultiple);
     if (multipleError) return multipleError;
     if (outside(rate, rates)) return `Enter an interest rate between ${rates.min}% and ${rates.max}%.`;
@@ -101,26 +104,30 @@ export function affordabilityInputError(input: AffordabilityInput): string | nul
         return `Enter a term of ${term.min} to ${term.max} whole years.`;
     if (outside(stressBuffer, buffers))
         return `Enter a stress buffer between ${buffers.min} and ${buffers.max} percentage points.`;
-    if (rate + stressBuffer > rates.max) return `The rate plus the stress buffer must be ${rates.max}% or less.`;
+    if (stressedRate > rates.max) return `The rate plus the stress buffer must be ${rates.max}% or less.`;
     if (maxLoan < 1) return 'The monthly commitments use up all the income, so there is nothing to borrow.';
     if (maxPrice > MAX_PRICE) return 'Enter a lower income or deposit.';
+    if (input.buyer !== undefined && !isBuyerType(input.buyer)) return 'Choose the type of buyer.';
     return null;
 }
 
 /**
  * The maths alone; `null` for invalid input. The maximum loan is (total income − 12 × monthly
- * commitments) × income multiple, rounded down to the pound; repayments come from
- * `calculateMortgage` on a repayment basis.
+ * commitments) × income multiple, rounded down to the pound; repayments are the mortgage
+ * calculator's, on a repayment basis. The stressed rate is used as it is, not rounded.
  */
 export function calculateAffordability(input: AffordabilityInput): Affordability | null {
-    if (affordabilityInputError(input)) return null;
-    const { stressBuffer, totalIncome, countedIncome, maxLoan, maxPrice } = resolve(input);
+    return affordabilityInputError(input) ? null : affordabilityFor(input);
+}
+
+/** The figures for an input `affordabilityInputError` has already passed. */
+function affordabilityFor(input: AffordabilityInput): Affordability {
+    const { stressedRate, totalIncome, countedIncome, maxLoan, maxPrice } = resolve(input);
     const { deposit, rate, termYears } = input;
-    const stressedRate = twoDecimals(rate + stressBuffer);
+    // The input check has passed everything the mortgage calculator would reject.
     const mortgage = { price: maxPrice, deposit, termYears, type: 'repayment' } as const;
-    const atRate = calculateMortgage({ ...mortgage, rate });
-    const stressed = calculateMortgage({ ...mortgage, rate: stressedRate });
-    if (!atRate || !stressed) return null;
+    const atRate = mortgageFor({ ...mortgage, rate });
+    const stressed = mortgageFor({ ...mortgage, rate: stressedRate });
     const stampDuty = calculateStampDuty({
         price: maxPrice,
         buyer: input.buyer ?? AFFORDABILITY_DEFAULTS.buyer,
@@ -178,8 +185,8 @@ export function getAffordabilitySummary(
     input: AffordabilityInput,
 ): { summary: AffordabilitySummary; error: null } | { summary: null; error: string } {
     const error = affordabilityInputError(input);
-    const result = error ? null : calculateAffordability(input);
-    if (error || !result) return { summary: null, error: error ?? 'Enter your yearly income before tax.' };
+    if (error) return { summary: null, error };
+    const result = affordabilityFor(input);
 
     const keys = Object.keys(AFFORDABILITY_LABELS) as AffordabilityKey[];
     const format = (key: AffordabilityKey) =>

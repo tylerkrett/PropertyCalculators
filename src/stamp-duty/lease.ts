@@ -1,20 +1,29 @@
 import { BAND_TABLES } from './bands/index';
 import { NON_RESIDENTIAL_BANDS, NON_RESIDENTIAL_RENT_BANDS, RESIDENTIAL_RENT_BANDS } from './bands/non-residential';
-import { type Band, getBands } from './calculate';
+import type { Band } from './calculate';
 import {
-    type BuyerType,
-    DEFAULT_BUYER_TYPE,
-    type PropertyType,
     type StampDutyBand,
     type StampDutyEstimate,
     type StampDutyInput,
     buildEstimate,
-    isBuyerType,
-    resolvePropertyType,
+    residentialBands,
     toBandOptions,
     toEstimateBands,
 } from './estimate';
 import { formatPounds } from './format';
+import {
+    assertInput,
+    type BuyerType,
+    checkAmount,
+    DEFAULT_BUYER_TYPE,
+    FIRST_TIME_BUYER_MAX_PRICE,
+    HIGHER_RATES_THRESHOLD,
+    isMultipleDwellingPurchase,
+    isSixOrMoreDwellings,
+    multipleDwellingsNote,
+    type PropertyType,
+    resolvePurchaseOptions,
+} from './purchase';
 import { type RentInput, calculateRentNpv, highestRent } from './rent';
 
 /*
@@ -33,7 +42,7 @@ export const SHORT_LEASE_YEARS = 7;
 export const FIRST_TIME_BUYER_MIN_LEASE_YEARS = 21;
 
 /** The non-UK resident surcharge applies to a lease with a premium or an annual rent of at least these. */
-export const SURCHARGE_MIN_PREMIUM = 40_000;
+export const SURCHARGE_MIN_PREMIUM = HIGHER_RATES_THRESHOLD;
 export const SURCHARGE_MIN_ANNUAL_RENT = 1_000;
 
 export interface LeaseStampDutyInput extends RentInput, Omit<StampDutyInput, 'price'> {
@@ -80,16 +89,18 @@ const withSurcharge = (bands: Band[], points: number): Band[] =>
  * - the non-UK resident surcharge adds 2 points to the rent bands too, but not for a lease of 7 years
  *   or fewer, and only when the premium is £40,000 or more or the rent £1,000 a year or more
  * - first-time buyer relief needs a lease of 21 years or more, and does not reduce the tax on rent
+ * - two to five dwellings in one lease of more than 7 years, for a premium of £40,000 or more, are
+ *   charged as an additional property whoever the buyer is, and first-time buyer relief is lost
  *
  * Throws a `RangeError` on invalid input.
  */
 export function calculateLeaseStampDuty(input: LeaseStampDutyInput): LeaseStampDuty {
-    const { premium, rent, termYears, buyer = DEFAULT_BUYER_TYPE, nonUkResident = false } = input;
-    if (typeof premium !== 'number' || !Number.isFinite(premium) || premium < 0)
-        throw new RangeError(`Invalid lease premium: ${String(premium)}`);
-    if (!isBuyerType(buyer)) throw new RangeError(`Invalid buyer type: ${String(buyer)}`);
-
-    const propertyType = resolvePropertyType(input);
+    assertInput(input, 'lease input');
+    const premium = checkAmount(input.premium, 'lease premium');
+    const { rent, termYears } = input;
+    const options = resolvePurchaseOptions(input);
+    const { buyer, nonUkResident, dwellings } = options;
+    const propertyType: PropertyType = isSixOrMoreDwellings(dwellings) ? 'non-residential' : options.propertyType;
     const npv = calculateRentNpv({ rent, termYears });
     const topRent = highestRent(rent);
     const notes: string[] = [];
@@ -108,13 +119,21 @@ export function calculateLeaseStampDuty(input: LeaseStampDutyInput): LeaseStampD
     } else {
         const shortLease = termYears <= SHORT_LEASE_YEARS;
 
-        if (buyer === 'additional-property' && shortLease) {
+        if (buyer !== 'additional-property' && !shortLease && isMultipleDwellingPurchase(premium, dwellings)) {
+            appliedBuyer = 'additional-property';
+            notes.push(
+                multipleDwellingsNote(
+                    dwellings,
+                    'the higher rates for additional dwellings are charged on the premium, and first-time buyer relief does not apply',
+                ),
+            );
+        } else if (buyer === 'additional-property' && shortLease) {
             appliedBuyer = DEFAULT_BUYER_TYPE;
             notes.push(
                 `The additional-property surcharge does not apply to a lease of ${SHORT_LEASE_YEARS} years or fewer.`,
             );
         }
-        if (buyer === 'first-time-buyer' && termYears < FIRST_TIME_BUYER_MIN_LEASE_YEARS) {
+        if (appliedBuyer === 'first-time-buyer' && termYears < FIRST_TIME_BUYER_MIN_LEASE_YEARS) {
             appliedBuyer = DEFAULT_BUYER_TYPE;
             notes.push(`First-time buyer relief needs a lease of at least ${FIRST_TIME_BUYER_MIN_LEASE_YEARS} years.`);
         }
@@ -126,7 +145,7 @@ export function calculateLeaseStampDuty(input: LeaseStampDutyInput): LeaseStampD
                 );
             else if (premium < SURCHARGE_MIN_PREMIUM && topRent < SURCHARGE_MIN_ANNUAL_RENT)
                 notes.push(
-                    'The non-UK resident surcharge does not apply: the premium is under £40,000 and the rent under £1,000 a year.',
+                    `The non-UK resident surcharge does not apply: the premium is under ${formatPounds(SURCHARGE_MIN_PREMIUM)} and the rent under ${formatPounds(SURCHARGE_MIN_ANNUAL_RENT)} a year.`,
                 );
             else surcharge = true;
         }
@@ -138,7 +157,11 @@ export function calculateLeaseStampDuty(input: LeaseStampDutyInput): LeaseStampD
                     ? BAND_TABLES.firstTimeBuyerNonUkResident.baseBands
                     : BAND_TABLES.nonUkResident.baseBands;
         } else {
-            premiumBands = getBands(premium, toBandOptions({ buyer: appliedBuyer, nonUkResident: surcharge }));
+            // Open question: the higher rates are tested here against the premium alone. Schedule 4ZA
+            // paragraph 3(2) tests "the chargeable consideration", which for a lease may include the
+            // rent; unlike Schedule 9A (the non-UK surcharge, above) it sets no separate rent test.
+            // No HMRC guidance settling it was found, so a premium under £40,000 pays no higher rates.
+            premiumBands = residentialBands(premium, toBandOptions({ buyer: appliedBuyer, nonUkResident: surcharge }));
         }
         rentBands = surcharge ? withSurcharge(RESIDENTIAL_RENT_BANDS, 2) : RESIDENTIAL_RENT_BANDS;
     }
@@ -169,7 +192,9 @@ export function calculateLeaseStampDuty(input: LeaseStampDutyInput): LeaseStampD
                 appliedBuyer === 'additional-property' &&
                 premium >= SURCHARGE_MIN_PREMIUM,
             firstTimeBuyerRelief:
-                propertyType === 'residential' && appliedBuyer === 'first-time-buyer' && premium <= 500_000,
+                propertyType === 'residential' &&
+                appliedBuyer === 'first-time-buyer' &&
+                premium <= FIRST_TIME_BUYER_MAX_PRICE,
             nonUkResidentSurcharge: surcharge,
         },
         notes,

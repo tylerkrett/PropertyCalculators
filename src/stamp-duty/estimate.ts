@@ -1,7 +1,32 @@
-import { NON_RESIDENTIAL_BANDS, NON_RESIDENTIAL_DWELLINGS_THRESHOLD } from './bands/non-residential';
+import { NON_RESIDENTIAL_BANDS } from './bands/non-residential';
 import { type Band, type BandOptions, getBands, getStampDuty } from './calculate';
 import { formatBandRange } from './labels';
 import { formatPounds, formatRate } from './format';
+import {
+    assertInput,
+    type BuyerType,
+    checkAmount,
+    DEFAULT_BUYER_TYPE,
+    HIGHER_RATES_THRESHOLD,
+    isMultipleDwellingPurchase,
+    isSixOrMoreDwellings,
+    MAX_AMOUNT,
+    type PropertyType,
+    resolvePurchaseOptions,
+} from './purchase';
+
+export {
+    BUYER_TYPES,
+    type BuyerType,
+    DEFAULT_BUYER_TYPE,
+    DEFAULT_PROPERTY_TYPE,
+    FIRST_TIME_BUYER_MAX_PRICE,
+    HIGHER_RATES_THRESHOLD,
+    isBuyerType,
+    isPropertyType,
+    PROPERTY_TYPES,
+    type PropertyType,
+} from './purchase';
 
 /*
  * The high-level call: one input in, everything a calculator UI shows out. The result is plain
@@ -9,44 +34,13 @@ import { formatPounds, formatRate } from './format';
  * component boundary untouched. Each number comes with its display string.
  */
 
-/** Who is buying: decides first-time buyer relief and the additional-property surcharge. */
-export const BUYER_TYPES = [
-    { value: 'home-mover', label: 'Home mover' },
-    { value: 'first-time-buyer', label: 'First-time buyer' },
-    { value: 'additional-property', label: 'Additional property' },
-] as const;
-
-export type BuyerType = (typeof BUYER_TYPES)[number]['value'];
-
-export const DEFAULT_BUYER_TYPE: BuyerType = 'home-mover';
-
-export const isBuyerType = (value: unknown): value is BuyerType => BUYER_TYPES.some((buyer) => buyer.value === value);
-
-/** What is being bought. Mixed use (a shop with a flat above) counts as non-residential. */
-export const PROPERTY_TYPES = [
-    { value: 'residential', label: 'Residential' },
-    { value: 'non-residential', label: 'Non-residential or mixed use' },
-] as const;
-
-export type PropertyType = (typeof PROPERTY_TYPES)[number]['value'];
-
-export const DEFAULT_PROPERTY_TYPE: PropertyType = 'residential';
-
-export const isPropertyType = (value: unknown): value is PropertyType =>
-    PROPERTY_TYPES.some((type) => type.value === value);
-
 /**
  * The property type the tax is charged at: non-residential rates apply to non-residential and
  * mixed-use property, and to six or more dwellings bought in one transaction.
  */
-export function resolvePropertyType({
-    propertyType = DEFAULT_PROPERTY_TYPE,
-    dwellings = 1,
-}: Pick<StampDutyInput, 'propertyType' | 'dwellings'> = {}): PropertyType {
-    if (!isPropertyType(propertyType)) throw new RangeError(`Invalid property type: ${String(propertyType)}`);
-    if (!Number.isInteger(dwellings) || dwellings < 1)
-        throw new RangeError(`Invalid number of dwellings: ${String(dwellings)}`);
-    return dwellings >= NON_RESIDENTIAL_DWELLINGS_THRESHOLD ? 'non-residential' : propertyType;
+export function resolvePropertyType(input: Pick<StampDutyInput, 'propertyType' | 'dwellings'> = {}): PropertyType {
+    const { propertyType, dwellings } = resolvePurchaseOptions(input);
+    return isSixOrMoreDwellings(dwellings) ? 'non-residential' : propertyType;
 }
 
 /** The highest price the calculators accept. */
@@ -64,11 +58,11 @@ export function parsePriceParam(value: string | string[] | undefined | null): nu
 }
 
 export interface StampDutyInput {
-    /** Pounds, 0 or more. */
+    /** Pounds, from 0 to `Number.MAX_SAFE_INTEGER`. */
     price: number;
     /** Defaults to `"home-mover"`. */
     buyer?: BuyerType;
-    /** Adds the non-UK resident surcharge. Defaults to `false`. */
+    /** Adds the non-UK resident surcharge. Must be a boolean when given. Defaults to `false`. */
     nonUkResident?: boolean;
     /**
      * Defaults to `"residential"`. At non-residential rates there is no first-time buyer relief,
@@ -76,7 +70,15 @@ export interface StampDutyInput {
      * make no difference.
      */
     propertyType?: PropertyType;
-    /** Dwellings bought in this one transaction. Six or more are taxed at non-residential rates. Defaults to 1. */
+    /**
+     * Dwellings bought in this one transaction. Defaults to 1.
+     *
+     * - Two to five, for £40,000 or more: the higher rates for additional dwellings are charged
+     *   whoever the buyer is, and first-time buyer relief is lost. The result's `buyer` is then
+     *   `"additional-property"`. The subsidiary-dwelling (annexe) exception is not modelled: if it
+     *   applies, leave `dwellings` at 1.
+     * - Six or more: non-residential rates.
+     */
     dwellings?: number;
 }
 
@@ -94,6 +96,7 @@ export interface StampDutyBand {
 
 export interface StampDutyEstimate {
     price: number;
+    /** The buyer type the tax was charged at, after the two-to-five-dwellings rule. */
     buyer: BuyerType;
     nonUkResident: boolean;
     /** The rates the tax was charged at, after the six-or-more-dwellings rule. */
@@ -119,23 +122,33 @@ export function fromBandOptions({ secondHome, firstTimeBuyer, ukResident }: Band
     return { buyer, nonUkResident: !ukResident };
 }
 
+/** Under £40,000 no residential SDLT is due. One band that holds any such price, pence included. */
+const UNDER_THRESHOLD_BANDS: Band[] = [{ range: [0, HIGHER_RATES_THRESHOLD], rate: 0 }];
+
+/** The residential rate bands for an amount: nothing under £40,000, the engine's tables from there. */
+export const residentialBands = (amount: number, options: BandOptions): Band[] =>
+    amount < HIGHER_RATES_THRESHOLD ? UNDER_THRESHOLD_BANDS : getBands(amount, options);
+
 /**
  * Stamp duty for a purchase, with the band-by-band breakdown and display strings.
- * Throws a `RangeError` unless `price` is a finite number of 0 or more.
+ * Throws a `RangeError` on invalid input.
  */
 export function calculateStampDuty(input: StampDutyInput): StampDutyEstimate {
-    const { price, buyer = DEFAULT_BUYER_TYPE, nonUkResident = false } = input;
-    if (typeof price !== 'number' || !Number.isFinite(price) || price < 0)
-        throw new RangeError(`Invalid stamp duty price: ${String(price)}`);
-    if (!isBuyerType(buyer)) throw new RangeError(`Invalid buyer type: ${String(buyer)}`);
+    assertInput(input, 'stamp duty input');
+    const price = checkAmount(input.price, 'stamp duty price');
+    const options = resolvePurchaseOptions(input);
+    const { nonUkResident } = options;
 
-    const propertyType = resolvePropertyType(input);
-    const bands =
-        propertyType === 'non-residential'
-            ? NON_RESIDENTIAL_BANDS
-            : getBands(price, toBandOptions({ buyer, nonUkResident }));
+    if (options.propertyType === 'non-residential' || isSixOrMoreDwellings(options.dwellings))
+        return buildEstimate(price, NON_RESIDENTIAL_BANDS, {
+            buyer: options.buyer,
+            nonUkResident,
+            propertyType: 'non-residential',
+        });
 
-    return buildEstimate(price, bands, { buyer, nonUkResident, propertyType });
+    const buyer = isMultipleDwellingPurchase(price, options.dwellings) ? 'additional-property' : options.buyer;
+    const bands = residentialBands(price, toBandOptions({ buyer, nonUkResident }));
+    return buildEstimate(price, bands, { buyer, nonUkResident, propertyType: 'residential' });
 }
 
 /** One calculated band as plain JSON with its display strings. */
@@ -187,7 +200,7 @@ export function buildEstimate(
 
 /** Just the amount, or `null` when the price can't be calculated: for listing cards. */
 export function stampDutyFor(price: number | null | undefined, options: Omit<StampDutyInput, 'price'> = {}) {
-    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) return null;
+    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0 || price > MAX_AMOUNT) return null;
     return calculateStampDuty({ price, ...options }).stampDuty;
 }
 

@@ -2,8 +2,9 @@
  * Land Transaction Tax (LTT): the tax on buying property in Wales, collected by the Welsh Revenue
  * Authority. The price is sliced into bands and each slice is taxed at its band's rate. Buying an
  * additional home for £40,000 or more is taxed at a separate, higher set of bands that replaces
- * the main ones. Wales has no first-time buyer relief. Purchase price only: rent on a new lease
- * is not covered.
+ * the main ones. Wales has no first-time buyer relief. Six or more dwellings bought together are
+ * taxed here at non-residential rates; the buyer's other choice, higher residential rates with
+ * multiple dwellings relief, is not calculated. Purchase price only: rent on a new lease is not covered.
  *
  * Sources (checked 18 November 2026):
  * https://www.gov.wales/land-transaction-tax-rates-and-bands
@@ -12,13 +13,13 @@
  */
 import type { Band } from '../stamp-duty/calculate';
 import { formatPounds } from '../stamp-duty/format';
+import { isMultipleDwellingPurchase, isSixOrMoreDwellings, multipleDwellingsNote } from '../stamp-duty/purchase';
 import {
     ADDITIONAL_PROPERTY_THRESHOLD,
     buildPropertyTaxEstimate,
     type PropertyTaxEstimate,
     type PropertyTaxInput,
     resolveInput,
-    SIX_OR_MORE_DWELLINGS,
 } from './shared';
 
 /** Main residential rates, for transactions on or after 10 October 2022. */
@@ -77,7 +78,7 @@ const NOTES = {
     higherRatesNotNonResidential: 'The higher residential rates are not charged on non-residential property.',
     belowHigherRatesThreshold: `The higher residential rates are not charged on purchases under ${formatPounds(LTT_HIGHER_RATES_THRESHOLD)}, so the main residential rates apply.`,
     sixOrMoreDwellings:
-        'When buying six or more dwellings in one transaction in Wales you can usually choose non-residential rates instead. This estimate uses residential rates.',
+        'Six or more dwellings bought in one transaction are taxed at non-residential rates in this estimate. In Wales you can usually choose instead to pay the higher residential rates with multiple dwellings relief, which is not calculated here.',
 } as const;
 
 /** The residential bands for a buyer, with the sentences explaining the choice. */
@@ -94,16 +95,28 @@ function residentialBands(price: number, buyer: PropertyTaxEstimate['buyer']): {
  * Throws a `RangeError` on invalid input.
  */
 export function calculateLtt(input: PropertyTaxInput): PropertyTaxEstimate {
-    const { price, buyer, propertyType, dwellings, nonUkResident } = resolveInput(input);
-    const meta = { country: 'wales', tax: 'LTT', price, buyer, nonUkResident, propertyType } as const;
+    const resolved = resolveInput(input);
+    const { price, nonUkResident, dwellings } = resolved;
+    const shared = { country: 'wales', tax: 'LTT', price, nonUkResident } as const;
     const residencyNotes = nonUkResident ? [NOTES.noNonUkSurcharge] : [];
 
-    if (propertyType === 'non-residential') {
-        const notes = buyer === 'additional-property' ? [NOTES.higherRatesNotNonResidential] : [];
+    const sixOrMore = isSixOrMoreDwellings(dwellings);
+    if (sixOrMore || resolved.propertyType === 'non-residential') {
+        const meta = { ...shared, buyer: resolved.buyer, propertyType: 'non-residential' } as const;
+        const notes: string[] = [];
+        if (sixOrMore && resolved.propertyType === 'residential') notes.push(NOTES.sixOrMoreDwellings);
+        else if (resolved.buyer === 'additional-property') notes.push(NOTES.higherRatesNotNonResidential);
         return buildPropertyTaxEstimate(meta, LTT_NON_RESIDENTIAL_BANDS, null, [...notes, ...residencyNotes]);
     }
 
+    // Two to five dwellings: the buyer owns more than one afterwards, so the higher rates are due whoever they are.
+    const multiple = resolved.buyer !== 'additional-property' && isMultipleDwellingPurchase(price, dwellings);
+    const buyer = multiple ? 'additional-property' : resolved.buyer;
+    const meta = { ...shared, buyer, propertyType: 'residential' } as const;
+    const dwellingNotes = multiple
+        ? [multipleDwellingsNote(dwellings, 'the higher residential rates are charged')]
+        : [];
+
     const { bands, notes } = residentialBands(price, buyer);
-    const dwellingNotes = dwellings >= SIX_OR_MORE_DWELLINGS ? [NOTES.sixOrMoreDwellings] : [];
-    return buildPropertyTaxEstimate(meta, bands, null, [...notes, ...dwellingNotes, ...residencyNotes]);
+    return buildPropertyTaxEstimate(meta, bands, null, [...dwellingNotes, ...notes, ...residencyNotes]);
 }

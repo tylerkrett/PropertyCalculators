@@ -1,14 +1,17 @@
 import { NON_RESIDENTIAL_BANDS } from './bands/non-residential';
-import { type Band, getBands } from './calculate';
-import {
-    type BuyerType,
-    DEFAULT_BUYER_TYPE,
-    type StampDutyEstimate,
-    type StampDutyInput,
-    buildEstimate,
-    resolvePropertyType,
-} from './estimate';
+import type { Band } from './calculate';
+import { type StampDutyEstimate, type StampDutyInput, buildEstimate, residentialBands } from './estimate';
 import { formatPounds, formatRate } from './format';
+import {
+    assertInput,
+    type BuyerType,
+    checkAmount,
+    DEFAULT_BUYER_TYPE,
+    HIGHER_RATES_THRESHOLD,
+    isSixOrMoreDwellings,
+    type PropertyType,
+    resolvePurchaseOptions,
+} from './purchase';
 
 /*
  * Purchases by companies and other "non-natural persons" (England and Northern Ireland).
@@ -55,7 +58,7 @@ export const isCompanyRelief = (value: unknown): value is CompanyRelief =>
     COMPANY_RELIEFS.some((relief) => relief.value === value);
 
 export interface CompanyStampDutyInput extends Pick<StampDutyInput, 'price' | 'propertyType' | 'dwellings'> {
-    /** The company is not UK resident for this purchase. Adds the 2-point surcharge. Defaults to `false`. */
+    /** The company is not UK resident for this purchase. Adds the 2-point surcharge. Must be a boolean when given. Defaults to `false`. */
     nonUkResident?: boolean;
     /** A relief from the flat rate the company is claiming. Defaults to `null`: none. */
     relief?: CompanyRelief | null;
@@ -97,16 +100,16 @@ const HIGHER_RATES_NOTE =
  * Throws a `RangeError` on invalid input.
  */
 export function calculateCompanyStampDuty(input: CompanyStampDutyInput): CompanyStampDuty {
-    const { price, nonUkResident = false, relief = null, dwellings = 1 } = input;
-    if (typeof price !== 'number' || !Number.isFinite(price) || price < 0)
-        throw new RangeError(`Invalid stamp duty price: ${String(price)}`);
-    if (typeof nonUkResident !== 'boolean')
-        throw new RangeError(`Invalid non-UK resident flag: ${String(nonUkResident)}`);
+    assertInput(input, 'company stamp duty input');
+    const price = checkAmount(input.price, 'stamp duty price');
+    const { nonUkResident, dwellings, propertyType: requestedPropertyType } = resolvePurchaseOptions(input);
+    const { relief = null } = input;
     if (relief !== null && !isCompanyRelief(relief)) throw new RangeError(`Invalid company relief: ${String(relief)}`);
 
-    // Validates `propertyType` and `dwellings`, and applies the six-or-more-dwellings rule.
-    const bandedPropertyType = resolvePropertyType(input);
-    const residential = (input.propertyType ?? 'residential') === 'residential';
+    const residential = requestedPropertyType === 'residential';
+    const bandedPropertyType: PropertyType = isSixOrMoreDwellings(dwellings)
+        ? 'non-residential'
+        : requestedPropertyType;
     const overThreshold = residential && price / dwellings > COMPANY_FLAT_RATE_THRESHOLD;
     const flatRate = overThreshold && relief === null;
     const notes: string[] = [];
@@ -140,14 +143,16 @@ export function calculateCompanyStampDuty(input: CompanyStampDutyInput): Company
         );
         if (nonUkResident) notes.push('The non-UK resident surcharge does not apply at non-residential rates.');
     } else {
-        // The engine's additional-property tables charge nothing under £40,000 and the higher rates above.
-        bands = getBands(price, { secondHome: true, ukResident: !nonUkResident });
-        higherRates = price >= 40_000;
+        // Nothing is charged under £40,000; from there the engine's additional-property tables apply.
+        bands = residentialBands(price, { secondHome: true, ukResident: !nonUkResident });
+        higherRates = price >= HIGHER_RATES_THRESHOLD;
         surcharge = nonUkResident && higherRates;
+        // Under the threshold the company is charged like any other buyer, so it is not reported as an additional property.
+        if (!higherRates) buyer = DEFAULT_BUYER_TYPE;
         notes.push(
             higherRates
                 ? HIGHER_RATES_NOTE
-                : 'No stamp duty is due on a dwelling bought for less than £40,000, and the higher rates do not apply.',
+                : `No stamp duty is due on a dwelling bought for less than ${formatPounds(HIGHER_RATES_THRESHOLD)}, and the higher rates do not apply.`,
         );
         if (surcharge)
             notes.push(`The non-UK resident surcharge adds ${NON_UK_RESIDENT_SURCHARGE} points to every band.`);

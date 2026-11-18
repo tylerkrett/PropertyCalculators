@@ -7,17 +7,17 @@
  * and https://www.gov.wales/land-transaction-tax-guide.
  */
 import type { Band } from '../stamp-duty/calculate';
-import {
-    type BuyerType,
-    DEFAULT_BUYER_TYPE,
-    DEFAULT_PROPERTY_TYPE,
-    isBuyerType,
-    isPropertyType,
-    type PropertyType,
-    type StampDutyBand,
-    toEstimateBands,
-} from '../stamp-duty/estimate';
+import { NON_RESIDENTIAL_DWELLINGS_THRESHOLD } from '../stamp-duty/bands/non-residential';
+import { type StampDutyBand, toEstimateBands } from '../stamp-duty/estimate';
 import { formatPounds, formatRate } from '../stamp-duty/format';
+import {
+    assertInput,
+    type BuyerType,
+    checkAmount,
+    HIGHER_RATES_THRESHOLD,
+    type PropertyType,
+    resolvePurchaseOptions,
+} from '../stamp-duty/purchase';
 
 /** The four UK countries, each with the short name of the tax charged there. */
 export const COUNTRIES = [
@@ -44,31 +44,51 @@ export const PROPERTY_TAX_NAMES = {
 } as const satisfies Record<PropertyTaxName, string>;
 
 /** Buying this many dwellings or more in one transaction changes the rates that can apply. */
-export const SIX_OR_MORE_DWELLINGS = 6;
+export const SIX_OR_MORE_DWELLINGS = NON_RESIDENTIAL_DWELLINGS_THRESHOLD;
 
 /** Below this price neither Scotland's supplement nor Wales's higher rates are charged. */
-export const ADDITIONAL_PROPERTY_THRESHOLD = 40_000;
+export const ADDITIONAL_PROPERTY_THRESHOLD = HIGHER_RATES_THRESHOLD;
 
 export interface PropertyTaxInput {
-    /** The purchase price in pounds, 0 or more. Rent on a new lease is not covered. */
+    /** The purchase price in pounds, from 0 to `Number.MAX_SAFE_INTEGER`. Rent on a new lease is not covered. */
     price: number;
     /** Defaults to `"home-mover"`. */
     buyer?: BuyerType;
     /** Defaults to `"residential"`. */
     propertyType?: PropertyType;
-    /** Dwellings bought in this one transaction. Defaults to 1. */
+    /**
+     * Dwellings bought in this one transaction. Defaults to 1.
+     *
+     * - Two to five, for £40,000 or more: charged as an additional property whoever the buyer is
+     *   (higher rates in England, Northern Ireland and Wales; the ADS in Scotland), and first-time
+     *   buyer relief is lost. The result's `buyer` is then `"additional-property"` and a note
+     *   explains it. The subsidiary-dwelling (annexe) exception is not modelled.
+     * - Six or more: non-residential rates in every country. In Wales the alternative, higher
+     *   residential rates with multiple dwellings relief, is noted but not calculated.
+     */
     dwellings?: number;
-    /** Only changes the tax in England and Northern Ireland. Defaults to `false`. */
+    /** Only changes the tax in England and Northern Ireland. Must be a boolean when given. Defaults to `false`. */
     nonUkResident?: boolean;
+    /**
+     * Scotland only, for a mixed-use purchase (`propertyType: "non-residential"`) by an
+     * additional-property buyer: the part of the price, in pounds, that is for the dwelling. The
+     * Additional Dwelling Supplement is charged on this part when it is £40,000 or more. Must not
+     * be more than `price`. Left out, no supplement is charged and a note says it may be due.
+     * Ignored everywhere else: Wales, England and Northern Ireland charge no higher rates on mixed use.
+     */
+    dwellingValue?: number;
 }
 
-/** A flat charge on the whole price, reported apart from the bands: Scotland's ADS. */
+/**
+ * A flat charge reported apart from the bands: Scotland's ADS. It is charged on the whole price,
+ * or in a mixed-use purchase on the part of the price that is for the dwelling.
+ */
 export interface PropertyTaxSupplement {
     /** `"ADS"`. */
     name: string;
     /** `"Additional Dwelling Supplement"`. */
     label: string;
-    /** Percent of the whole price. */
+    /** Percent of the amount the supplement is charged on. */
     rate: number;
     amount: number;
     formatted: { rate: string; amount: string };
@@ -80,6 +100,7 @@ export interface PropertyTaxEstimate {
     /** The short name of the tax: `"SDLT"`, `"LBTT"` or `"LTT"`. */
     tax: PropertyTaxName;
     price: number;
+    /** The buyer type the tax was charged at, after the two-to-five-dwellings rule. */
     buyer: BuyerType;
     nonUkResident: boolean;
     /** The rates the tax was charged at, after any six-or-more-dwellings rule. */
@@ -100,23 +121,18 @@ export interface PropertyTaxEstimate {
 
 /** The input with defaults applied. Throws a `RangeError` when any part of it is invalid. */
 export function resolveInput(input: PropertyTaxInput) {
-    const {
-        price,
-        buyer = DEFAULT_BUYER_TYPE,
-        propertyType = DEFAULT_PROPERTY_TYPE,
-        dwellings = 1,
-        nonUkResident = false,
-    } = input;
-    if (typeof price !== 'number' || !Number.isFinite(price) || price < 0)
-        throw new RangeError(`Invalid property price: ${String(price)}`);
-    if (!isBuyerType(buyer)) throw new RangeError(`Invalid buyer type: ${String(buyer)}`);
-    if (!isPropertyType(propertyType)) throw new RangeError(`Invalid property type: ${String(propertyType)}`);
-    if (!Number.isInteger(dwellings) || dwellings < 1)
-        throw new RangeError(`Invalid number of dwellings: ${String(dwellings)}`);
-    return { price, buyer, propertyType, dwellings, nonUkResident: Boolean(nonUkResident) };
+    assertInput(input, 'property tax input');
+    const price = checkAmount(input.price, 'property price');
+    const options = resolvePurchaseOptions(input);
+    const dwellingValue = input.dwellingValue === undefined ? null : checkAmount(input.dwellingValue, 'dwelling value');
+    if (dwellingValue !== null && dwellingValue > price)
+        throw new RangeError(`Invalid dwelling value: ${dwellingValue} is more than the price`);
+    return { price, ...options, dwellingValue };
 }
 
-/** A flat percentage of the whole price, rounded down to the pound like the band tax. */
+export type ResolvedPropertyTaxInput = ReturnType<typeof resolveInput>;
+
+/** A flat percentage of an amount (the whole price, or the dwelling's part of it), rounded down to the pound like the band tax. */
 export function toSupplement(price: number, rate: number, name: string, label: string): PropertyTaxSupplement {
     // Multiply before dividing: (price / 100) * rate loses a pound to floating point at some prices.
     const amount = Math.floor((price * rate) / 100);

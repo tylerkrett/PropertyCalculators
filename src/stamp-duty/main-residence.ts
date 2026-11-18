@@ -1,5 +1,9 @@
 import { type BuyerType, type StampDutyInput, calculateStampDuty } from './estimate';
 import { formatPounds } from './format';
+import { assertInput } from './purchase';
+import { HIGHER_RATES_REFUND_WINDOW_YEARS } from './refund-deadlines';
+
+export * from './refund-deadlines';
 
 /*
  * Replacing a main residence. Someone who owns another property normally pays the higher rates,
@@ -9,16 +13,10 @@ import { formatPounds } from './format';
  * Source: GOV.UK "Higher rates of Stamp Duty Land Tax" (buying an additional residential property).
  */
 
-/** Years after the purchase within which the previous main home must be sold to get a refund. */
-export const HIGHER_RATES_REFUND_WINDOW_YEARS = 3;
-
-/** Months to claim the refund, counted from the later of the sale and the return's filing date. */
-export const HIGHER_RATES_REFUND_CLAIM_MONTHS = 12;
-
-/** Days after completion by which the SDLT return must be filed. */
-export const SDLT_FILING_DAYS = 14;
-
-/** The questions to ask, in order. A later question only matters when the earlier answers are "yes". */
+/**
+ * The questions to ask, in order. The first two are always needed. The third only matters when the
+ * second is "yes", and the fourth only when the third is "yes".
+ */
 export const BUYER_QUESTIONS = [
     { key: 'firstTimeBuyer', label: 'Is everyone buying a first-time buyer?' },
     { key: 'ownsOtherProperty', label: 'Will you own more than one residential property after this purchase?' },
@@ -60,13 +58,13 @@ const EXPLANATIONS: Record<BuyerReason, string> = {
     'only-property': 'This will be your only residential property, so standard rates apply.',
     'replacing-main-residence':
         'You are replacing your main residence and the previous one is sold, so standard rates apply.',
-    'previous-home-not-sold':
-        'Your previous main residence is not sold yet, so the higher rates apply. You can claim the extra back if it is sold within 3 years.',
+    'previous-home-not-sold': `Your previous main residence is not sold yet, so the higher rates apply. You can claim the extra back if it is sold within ${HIGHER_RATES_REFUND_WINDOW_YEARS} years.`,
     'additional-property': 'You will own more than one residential property, so the higher rates apply.',
 };
 
-/** Works out which rates a buyer pays from yes/no answers. */
+/** Works out which rates a buyer pays from yes/no answers. Throws a `RangeError` unless given an object. */
 export function resolveBuyer(answers: BuyerAnswers): BuyerResolution {
+    assertInput(answers, 'buyer answers');
     const { firstTimeBuyer, ownsOtherProperty, replacingMainResidence, previousHomeSold } = answers;
 
     let reason: BuyerReason;
@@ -103,7 +101,8 @@ export interface HigherRatesRefund {
  * less the standard-rates bill for the same price.
  */
 export function getHigherRatesRefund(input: Pick<StampDutyInput, 'price' | 'nonUkResident'>): HigherRatesRefund {
-    const { price, nonUkResident = false } = input;
+    assertInput(input, 'refund input');
+    const { price, nonUkResident } = input;
     const paid = calculateStampDuty({ price, nonUkResident, buyer: 'additional-property' }).stampDuty;
     const standard = calculateStampDuty({ price, nonUkResident, buyer: 'home-mover' }).stampDuty;
     const refund = paid - standard;
@@ -113,64 +112,5 @@ export function getHigherRatesRefund(input: Pick<StampDutyInput, 'price' | 'nonU
         standard,
         refund,
         formatted: { paid: formatPounds(paid), standard: formatPounds(standard), refund: formatPounds(refund) },
-    };
-}
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-function parseDate(value: string, name: string): Date {
-    const date = ISO_DATE.test(value) ? new Date(`${value}T00:00:00Z`) : new Date(Number.NaN);
-    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value)
-        throw new RangeError(`Invalid ${name}: ${String(value)} (expected YYYY-MM-DD)`);
-    return date;
-}
-
-const toIso = (date: Date) => date.toISOString().slice(0, 10);
-
-function shift(date: Date, { years = 0, months = 0, days = 0 }) {
-    const day = date.getUTCDate();
-    const shifted = new Date(Date.UTC(date.getUTCFullYear() + years, date.getUTCMonth() + months, 1));
-    // Clamp to the month's last day: 29 February plus three years is 28 February.
-    const lastDay = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 0)).getUTCDate();
-    shifted.setUTCDate(Math.min(day, lastDay) + days);
-    return shifted;
-}
-
-export interface RefundDeadlines {
-    /** The previous main home must be sold on or before this date. */
-    sellBy: string;
-    /** The date the SDLT return for the new home is due. */
-    filingDate: string;
-    /** The refund must be claimed by this date. `null` until `saleDate` is given. */
-    claimBy: string | null;
-    /** Whether `saleDate` falls inside the window. `null` until `saleDate` is given. */
-    soldInTime: boolean | null;
-}
-
-/**
- * The dates that matter for a higher-rates refund. Dates are `YYYY-MM-DD` strings.
- * `purchaseDate` is the completion date of the new home; `saleDate` is when the previous home sold.
- */
-export function getRefundDeadlines({
-    purchaseDate,
-    saleDate,
-}: {
-    purchaseDate: string;
-    saleDate?: string;
-}): RefundDeadlines {
-    const purchase = parseDate(purchaseDate, 'purchase date');
-    const sellBy = shift(purchase, { years: HIGHER_RATES_REFUND_WINDOW_YEARS });
-    const filing = shift(purchase, { days: SDLT_FILING_DAYS });
-
-    if (saleDate === undefined)
-        return { sellBy: toIso(sellBy), filingDate: toIso(filing), claimBy: null, soldInTime: null };
-
-    const sale = parseDate(saleDate, 'sale date');
-    const later = sale.getTime() > filing.getTime() ? sale : filing;
-    return {
-        sellBy: toIso(sellBy),
-        filingDate: toIso(filing),
-        claimBy: toIso(shift(later, { months: HIGHER_RATES_REFUND_CLAIM_MONTHS })),
-        soldInTime: sale.getTime() <= sellBy.getTime(),
     };
 }

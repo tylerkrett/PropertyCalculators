@@ -1,21 +1,14 @@
 import { MAX_PRICE } from '../stamp-duty/estimate';
-import { formatPounds, formatPoundsAndPence } from '../stamp-duty/format';
-import {
-    formatDuration,
-    LOAN_LIMITS,
-    loanInputError,
-    monthlyPaymentFor,
-    pence,
-    type RemainingTerm,
-    toTermMonths,
-} from './loan';
+import { LOAN_LIMITS, loanInputError, monthlyPaymentFor, pence, type RemainingTerm, toTermMonths } from './loan';
 
 /*
  * Remortgage comparison: is it worth leaving the current deal for a new one? It compares the
  * monthly payment on each over the same remaining term, adds up the cost of switching (the new
  * deal's product fee plus any early repayment charge on the old one), and counts the months
- * until the interest saved has paid that cost back. An illustration only: it assumes both rates
- * hold for the whole comparison, so enter the rate you would really be paying if you stayed.
+ * until the interest saved has paid that cost back. The saving over the fixed period is shown as
+ * the cash kept in payments and the lower balance owed at the end, which add up to the net saving.
+ * An illustration only: it assumes both rates hold for the whole comparison, so enter the rate you
+ * would really be paying if you stayed. The display strings are in `remortgage-summary.ts`.
  */
 
 export const FEE_PAYMENTS = [
@@ -64,13 +57,29 @@ export interface RemortgageComparison {
     comparisonMonths: number;
     /** Interest on the current deal less interest on the new one, over the comparison period. */
     interestSaved: number;
-    /** Interest saved less the switching cost: how much better off you are when the period ends. */
+    /**
+     * Interest saved less the switching cost: how much better off you are when the period ends,
+     * counting the lower balance owed. Always `paymentSaving + balanceDifference`.
+     */
     netSaving: number;
     /**
+     * The cash kept over the comparison period: the monthly saving times the months compared, less
+     * the early repayment charge and the product fee (unless the fee is added to the loan).
+     */
+    paymentSaving: number;
+    /**
+     * How much less is owed on the new deal when the period ends; negative when more is owed. It is
+     * the part of the net saving that is not cash in hand.
+     */
+    balanceDifference: number;
+    /**
      * Months until the interest saved has covered the switching cost; 0 when a cheaper deal costs
-     * nothing to switch to; `null` when it never does within the remaining term.
+     * nothing to switch to; `null` when it never does within the remaining term. It can fall after
+     * the comparison period: see `breakEvenWithinPeriod`.
      */
     breakEvenMonths: number | null;
+    /** Whether the cost is covered by the end of the comparison period; `false` when it never is. */
+    breakEvenWithinPeriod: boolean;
 }
 
 const amount = (value: number | undefined) => value ?? 0;
@@ -84,6 +93,8 @@ export function remortgageInputError(input: RemortgageInput): string | null {
     if (loanError) return loanError;
     if (invalidFee(amount(input.productFee))) return 'Enter the product fee, or leave it at 0.';
     if (invalidFee(amount(input.earlyRepaymentCharge))) return 'Enter the early repayment charge, or leave it at 0.';
+    if (input.feePayment !== undefined && !FEE_PAYMENTS.some((option) => option.value === input.feePayment))
+        return 'Choose how the product fee is paid.';
     const { min, max } = REMORTGAGE_LIMITS.fixedYears;
     const fixedYears = input.fixedYears ?? REMORTGAGE_DEFAULTS.fixedYears;
     if (!Number.isInteger(fixedYears) || fixedYears < min || fixedYears > max)
@@ -91,15 +102,15 @@ export function remortgageInputError(input: RemortgageInput): string | null {
     return null;
 }
 
-/** Interest charged in each month of a loan paid at its standard payment. */
-function monthlyInterest(balance: number, rate: number, months: number): number[] {
+/** A loan paid at its standard payment, as a function giving the interest charged in each month in turn. */
+function interestByMonth(balance: number, rate: number, months: number): () => number {
     const r = rate / 100 / 12;
     const payment = monthlyPaymentFor(balance, rate, months);
-    return Array.from({ length: months }, () => {
+    return () => {
         const interest = balance * r;
         balance = Math.max(0, balance + interest - payment);
         return interest;
-    });
+    };
 }
 
 /**
@@ -108,96 +119,59 @@ function monthlyInterest(balance: number, rate: number, months: number): number[
  * (along with the interest it attracts) and paying the balance down faster is not mistaken for a cost.
  */
 export function calculateRemortgage(input: RemortgageInput): RemortgageComparison | null {
-    if (remortgageInputError(input)) return null;
+    return remortgageInputError(input) ? null : compareDeals(input);
+}
+
+/** The comparison for an input `remortgageInputError` has already passed. */
+export function compareDeals(input: RemortgageInput): RemortgageComparison {
     const months = toTermMonths(input);
     const fee = amount(input.productFee);
-    const switchingCost = fee + amount(input.earlyRepaymentCharge);
+    const charge = amount(input.earlyRepaymentCharge);
+    const switchingCost = fee + charge;
     const feeAdded = (input.feePayment ?? REMORTGAGE_DEFAULTS.feePayment) === 'add-to-loan';
     const newLoan = input.balance + (feeAdded ? fee : 0);
     const comparisonMonths = Math.min((input.fixedYears ?? REMORTGAGE_DEFAULTS.fixedYears) * 12, months);
 
-    const currentInterest = monthlyInterest(input.balance, input.currentRate, months);
-    const newInterest = monthlyInterest(newLoan, input.newRate, months);
-    // Running total of interest saved, to the penny, after each month.
+    // Replay both loans together, keeping the running total of interest saved to the penny.
+    const currentInterest = interestByMonth(input.balance, input.currentRate, months);
+    const newInterest = interestByMonth(newLoan, input.newRate, months);
     let saved = 0;
-    const savedAfter = currentInterest.map((interest, month) => pence((saved += interest - (newInterest[month] ?? 0))));
-    const paidBack = savedAfter.findIndex((total) => total >= switchingCost);
-    const interestSaved = savedAfter[comparisonMonths - 1] ?? 0;
+    let interestSaved = 0;
+    let paidBackMonth: number | null = null;
+    for (let month = 1; month <= months; month += 1) {
+        saved += currentInterest() - newInterest();
+        if (month === comparisonMonths) interestSaved = pence(saved);
+        if (paidBackMonth === null && pence(saved) >= switchingCost) paidBackMonth = month;
+    }
+
     const currentMonthlyPayment = pence(monthlyPaymentFor(input.balance, input.currentRate, months));
     const newMonthlyPayment = pence(monthlyPaymentFor(newLoan, input.newRate, months));
+    const monthlySaving = pence(currentMonthlyPayment - newMonthlyPayment);
+    const netSaving = pence(interestSaved - switchingCost);
+    // Interest is payments plus the change in what is owed, so the net saving splits exactly in two:
+    // netSaving = paymentSaving + balanceDifference. A fee added to the loan is not cash paid out;
+    // it shows up as a higher balance instead.
+    const paymentSaving = pence(monthlySaving * comparisonMonths - charge - (feeAdded ? 0 : fee));
+    const breakEvenMonths = breakEven(input, switchingCost, paidBackMonth);
 
     return {
         currentMonthlyPayment,
         newMonthlyPayment,
-        monthlySaving: pence(currentMonthlyPayment - newMonthlyPayment),
+        monthlySaving,
         switchingCost,
         newLoan,
         comparisonMonths,
         interestSaved,
-        netSaving: pence(interestSaved - switchingCost),
-        breakEvenMonths: breakEven(input, switchingCost, paidBack),
+        netSaving,
+        paymentSaving,
+        balanceDifference: pence(netSaving - paymentSaving),
+        breakEvenMonths,
+        breakEvenWithinPeriod: breakEvenMonths !== null && breakEvenMonths <= comparisonMonths,
     };
 }
 
-/** `paidBack` is the index of the first month whose running saving covers the cost, or -1. */
-function breakEven(input: RemortgageInput, switchingCost: number, paidBack: number): number | null {
+/** `paidBackMonth` is the first month whose running saving covers the cost, or `null` when none does. */
+function breakEven(input: RemortgageInput, switchingCost: number, paidBackMonth: number | null): number | null {
     if (input.newRate >= input.currentRate) return null;
-    if (switchingCost === 0) return 0;
-    return paidBack < 0 ? null : paidBack + 1;
-}
-
-export const REMORTGAGE_LABELS = {
-    monthlySaving: 'Monthly saving',
-    currentMonthlyPayment: 'Current monthly payment',
-    newMonthlyPayment: 'New monthly payment',
-    switchingCost: 'Cost of switching',
-    breakEvenMonths: 'Time to break even',
-    interestSaved: 'Interest saved over the fixed period',
-    netSaving: 'Net saving over the fixed period',
-    newLoan: 'New loan amount',
-} as const;
-
-type RemortgageKey = keyof typeof REMORTGAGE_LABELS;
-
-export interface RemortgageSummary extends RemortgageComparison {
-    formatted: Record<RemortgageKey, string>;
-    /** The same figures as labelled rows, in display order. `value` is `null` when it never breaks even. */
-    rows: { key: RemortgageKey; label: string; value: number | null; formatted: string }[];
-}
-
-/**
- * A remortgage comparison with every figure and its display string. Either the summary or the
- * reason the input can't be calculated, never both.
- */
-export function getRemortgageSummary(
-    input: RemortgageInput,
-): { summary: RemortgageSummary; error: null } | { summary: null; error: string } {
-    const error = remortgageInputError(input);
-    const result = error ? null : calculateRemortgage(input);
-    if (error || !result) return { summary: null, error: error ?? 'Enter the mortgage balance.' };
-
-    // A loss is written "-£1,200", with the sign ahead of the pound.
-    const signed = (value: number, format: (n: number) => string) => (value < 0 ? `-${format(-value)}` : format(value));
-    const keys = Object.keys(REMORTGAGE_LABELS) as RemortgageKey[];
-    const isPayment = (key: RemortgageKey) => key.toLowerCase().includes('monthly');
-    const display = (key: RemortgageKey) => {
-        if (key === 'breakEvenMonths')
-            return result.breakEvenMonths === null ? 'Never' : formatDuration(result.breakEvenMonths);
-        return signed(result[key], isPayment(key) ? formatPoundsAndPence : formatPounds);
-    };
-    const formatted = Object.fromEntries(keys.map((key) => [key, display(key)])) as Record<RemortgageKey, string>;
-
-    return {
-        summary: {
-            ...result,
-            formatted,
-            rows: keys.map((key) => ({
-                key,
-                label: REMORTGAGE_LABELS[key],
-                value: result[key],
-                formatted: formatted[key],
-            })),
-        },
-        error: null,
-    };
+    return switchingCost === 0 ? 0 : paidBackMonth;
 }

@@ -3,6 +3,7 @@ import { formatPounds, formatRate } from '../stamp-duty/format';
 import {
     AFFORDABILITY_DEFAULTS,
     amount,
+    EPSILON,
     COMMITMENTS_ERROR,
     incomeMultipleError,
     invalid,
@@ -47,15 +48,17 @@ export function incomeNeededInputError(input: IncomeNeededInput): string | null 
 
 /**
  * The reverse of `calculateAffordability`: the income needed to buy at a target price. It is
- * loan ÷ income multiple, plus a year of commitments; `null` for invalid input. Feeding the
- * answer back into `calculateAffordability` gives a maximum loan of at least this loan.
+ * loan ÷ income multiple, plus a year of commitments; `null` for invalid input. The forward
+ * calculation lends whole pounds, so a loan with pence is first rounded up to the pound: feeding
+ * the answer back into `calculateAffordability` then gives a maximum loan of at least this loan.
  */
 export function calculateIncomeNeeded(input: IncomeNeededInput): IncomeNeeded | null {
     if (incomeNeededInputError(input)) return null;
     const loan = input.price - input.deposit;
     const multiple = input.incomeMultiple ?? AFFORDABILITY_DEFAULTS.incomeMultiple;
     const ltv = twoDecimals((loan / input.price) * 100);
-    const incomeNeeded = poundsUp(loan / multiple + amount(input.monthlyCommitments) * 12);
+    const wholeLoan = Math.ceil(loan - EPSILON);
+    const incomeNeeded = poundsUp(wholeLoan / multiple + amount(input.monthlyCommitments) * 12);
     return {
         loan,
         ltv,

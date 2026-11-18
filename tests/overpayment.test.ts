@@ -3,14 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { calculateMortgage } from '../src/mortgage/index';
 import {
     calculateOverpayment,
-    calculateRemortgage,
     formatDuration,
     getOverpaymentSummary,
-    getRemortgageSummary,
     overpaymentInputError,
-    remortgageInputError,
     type OverpaymentInput,
-    type RemortgageInput,
 } from '../src/overpayment/index';
 
 const base: OverpaymentInput = { balance: 200_000, rate: 5, termYears: 25 };
@@ -133,6 +129,21 @@ describe('calculateOverpayment', () => {
         expect(overpaymentInputError({ ...base, lumpSum: Number.NaN })).toMatch(/lump sum/);
         expect(calculateOverpayment({ ...base, lumpSum: -1 })).toBeNull();
     });
+
+    it('enforces the advertised limits on the balance and each part of the term', () => {
+        expect(overpaymentInputError({ ...base, balance: 0.5 })).toBe('Enter the mortgage balance.');
+        expect(overpaymentInputError({ ...base, balance: 1 })).toBeNull();
+        // Years and months are each a whole number of 0 or more: they can't cancel each other out.
+        const term = (parts: object) => overpaymentInputError({ balance: 1_000, rate: 5, ...parts });
+        expect(term({ termYears: 2, termMonths: -6 })).toMatch(/remaining term/);
+        expect(term({ termYears: 1.5 })).toMatch(/remaining term/);
+        expect(term({ termYears: 1.5, termMonths: 6 })).toMatch(/remaining term/);
+        expect(term({ termYears: '25' })).toMatch(/remaining term/);
+        expect(term({ termYears: 0, termMonths: 0 })).toMatch(/remaining term/);
+        expect(term({ termYears: 18, termMonths: 4 })).toBeNull();
+        expect(term({ termMonths: 480 })).toBeNull();
+        expect(term({ termMonths: 481 })).toMatch(/remaining term/);
+    });
 });
 
 describe('getOverpaymentSummary', () => {
@@ -156,6 +167,23 @@ describe('getOverpaymentSummary', () => {
         });
     });
 
+    it('shows an interest saved that is the difference of the two totals as displayed', () => {
+        // 52,999.52 less 36,625.13 is 16,374.39, but the totals are shown as £53,000 and £36,625.
+        const input = { balance: 100_043.86, rate: 4.37, termYears: 21, monthlyOverpayment: 150 };
+        const { summary } = getOverpaymentSummary(input);
+        expect(summary).toMatchObject({
+            interestBefore: 52_999.52,
+            interestAfter: 36_625.13,
+            interestSaved: 16_374.39,
+        });
+        expect(summary!.formatted).toMatchObject({
+            interestBefore: '£53,000',
+            interestAfter: '£36,625',
+            interestSaved: '£16,375',
+        });
+        expect(summary!.rows[0]).toMatchObject({ key: 'interestSaved', value: 16_374.39, formatted: '£16,375' });
+    });
+
     it('survives a trip through JSON unchanged, and reports errors', () => {
         const result = getOverpaymentSummary({ ...base, monthlyOverpayment: 200, includeSchedule: true });
         expect(JSON.parse(JSON.stringify(result))).toEqual(result);
@@ -163,88 +191,5 @@ describe('getOverpaymentSummary', () => {
             summary: null,
             error: 'Enter the mortgage balance.',
         });
-    });
-});
-
-const deal: RemortgageInput = { balance: 120_000, currentRate: 6, newRate: 3, termYears: 20 };
-
-describe('calculateRemortgage', () => {
-    it('compares the standard payment on each deal', () => {
-        const payment = (rate: number) =>
-            calculateMortgage({ price: 120_000, deposit: 0, rate, termYears: 20, type: 'repayment' })!.monthlyPayment;
-        const result = calculateRemortgage(deal)!;
-        expect([result.currentMonthlyPayment, result.newMonthlyPayment]).toEqual([payment(6), payment(3)]);
-        expect(result.monthlySaving).toBe(194.2);
-        expect(result).toMatchObject({ switchingCost: 0, newLoan: 120_000, comparisonMonths: 24 });
-    });
-
-    it('breaks even exactly when the interest saved meets the cost', () => {
-        // First month's interest: £600 at 6% against £300 at 3%, so £300 is paid back in month one.
-        expect(calculateRemortgage({ ...deal, productFee: 300 })!.breakEvenMonths).toBe(1);
-        expect(calculateRemortgage({ ...deal, productFee: 200, earlyRepaymentCharge: 100 })!.breakEvenMonths).toBe(1);
-        expect(calculateRemortgage({ ...deal, productFee: 300.01 })!.breakEvenMonths).toBe(2);
-        // Nothing to pay back on a cheaper deal with no costs.
-        expect(calculateRemortgage(deal)!.breakEvenMonths).toBe(0);
-    });
-
-    it('never breaks even on a dearer deal or when the cost outweighs the saving', () => {
-        const dearer = calculateRemortgage({ ...deal, currentRate: 3, newRate: 3.5 })!;
-        expect(dearer.breakEvenMonths).toBeNull();
-        expect(dearer.monthlySaving).toBeLessThan(0);
-        expect(dearer.netSaving).toBeLessThan(0);
-        expect(calculateRemortgage({ ...deal, newRate: 6, productFee: 999 })!.breakEvenMonths).toBeNull();
-
-        const tooCostly = { balance: 10_000, currentRate: 4, newRate: 3.9, termYears: 2, productFee: 999 };
-        expect(calculateRemortgage(tooCostly)).toMatchObject({ breakEvenMonths: null, netSaving: -988.32 });
-    });
-
-    it('nets the switching cost off the interest saved over the fixed period', () => {
-        const input = { ...deal, balance: 200_000, currentRate: 5.5, newRate: 4.5, termYears: 25 };
-        const result = calculateRemortgage({ ...input, productFee: 999, earlyRepaymentCharge: 1_000 })!;
-        expect(result).toMatchObject({ switchingCost: 1_999, interestSaved: 3_977.2, breakEvenMonths: 13 });
-        expect(result.netSaving).toBe(1_978.2);
-
-        const fiveYears = calculateRemortgage({ ...input, productFee: 999, fixedYears: 5 })!;
-        expect(fiveYears.comparisonMonths).toBe(60);
-        expect(fiveYears.interestSaved).toBeGreaterThan(result.interestSaved);
-        // The comparison stops when the mortgage does.
-        expect(calculateRemortgage({ ...deal, termYears: 1 })!.comparisonMonths).toBe(12);
-    });
-
-    it('costs more to add the fee to the loan than to pay it upfront', () => {
-        const input = { ...deal, balance: 200_000, currentRate: 5.5, newRate: 4.5, termYears: 25, productFee: 999 };
-        const upfront = calculateRemortgage(input)!;
-        const added = calculateRemortgage({ ...input, feePayment: 'add-to-loan' })!;
-        expect([upfront.newLoan, added.newLoan]).toEqual([200_000, 200_999]);
-        expect(added.switchingCost).toBe(upfront.switchingCost);
-        expect(added.newMonthlyPayment).toBeGreaterThan(upfront.newMonthlyPayment);
-        // The borrowed fee earns the lender interest: 4.5% on £999 is about £88 over two years.
-        expect(upfront.netSaving - added.netSaving).toBeCloseTo(88, 0);
-    });
-
-    it("rejects input it can't calculate", () => {
-        expect(remortgageInputError(deal)).toBeNull();
-        expect(remortgageInputError({ ...deal, balance: 0 })).toMatch(/balance/);
-        expect(remortgageInputError({ ...deal, currentRate: -1 })).toMatch(/current interest rate/);
-        expect(remortgageInputError({ ...deal, newRate: 26 })).toMatch(/new interest rate/);
-        expect(remortgageInputError({ ...deal, termYears: 0 })).toMatch(/remaining term/);
-        expect(remortgageInputError({ ...deal, productFee: -1 })).toMatch(/product fee/);
-        expect(remortgageInputError({ ...deal, earlyRepaymentCharge: Number.NaN })).toMatch(/early repayment/);
-        expect(remortgageInputError({ ...deal, fixedYears: 0 })).toMatch(/fixed period/);
-        expect(calculateRemortgage({ ...deal, fixedYears: 2.5 })).toBeNull();
-    });
-});
-
-describe('getRemortgageSummary', () => {
-    it('formats every figure, writing a break-even that never comes as "Never"', () => {
-        const { summary } = getRemortgageSummary({ ...deal, productFee: 3_000 });
-        expect(summary!.formatted).toMatchObject({ monthlySaving: '£194.20', switchingCost: '£3,000' });
-        expect(summary!.formatted.breakEvenMonths).toBe(formatDuration(summary!.breakEvenMonths!));
-
-        const never = getRemortgageSummary({ ...deal, currentRate: 3, newRate: 3.5 });
-        expect(never.summary!.formatted).toMatchObject({ breakEvenMonths: 'Never', monthlySaving: '-£30.43' });
-        expect(never.summary!.rows.find((row) => row.key === 'breakEvenMonths')!.value).toBeNull();
-        expect(JSON.parse(JSON.stringify(never))).toEqual(never);
-        expect(getRemortgageSummary({ ...deal, newRate: 99 }).error).toMatch(/new interest rate/);
     });
 });

@@ -1,4 +1,4 @@
-import { type BuyerType, calculateStampDuty, MAX_PRICE } from '../stamp-duty/estimate';
+import { type BuyerType, calculateStampDuty, isBuyerType, MAX_PRICE } from '../stamp-duty/estimate';
 import { formatPounds, formatPoundsAndPence, formatRate } from '../stamp-duty/format';
 
 /*
@@ -23,7 +23,8 @@ export type BuyingCostFeeKey = (typeof BUYING_COST_FEES)[number]['key'];
 
 /** A cost of your own, such as `{ label: 'Furniture', amount: 2000 }`. */
 export interface BuyingCostExtra {
-    label: string;
+    /** Shown as `"Other cost"` when left out or blank. */
+    label?: string;
     /** Pounds, 0 or more. */
     amount: number;
 }
@@ -82,25 +83,40 @@ const amount = (value: number | undefined) => value ?? BUYING_COSTS_DEFAULTS.fee
 const invalidFee = (value: number) => !Number.isFinite(value) || value < 0 || value > BUYING_COSTS_LIMITS.fee.max;
 const pence = (value: number) => Math.round(value * 100) / 100;
 
+/** Whether a value from the `extras` list can be used: an object with a valid amount and, if any, a text label. */
+function isExtra(extra: unknown): extra is BuyingCostExtra {
+    if (typeof extra !== 'object' || extra === null) return false;
+    const { label, amount: cost } = extra as { label?: unknown; amount?: unknown };
+    return (label === undefined || typeof label === 'string') && typeof cost === 'number' && !invalidFee(cost);
+}
+
 /** Why an input can't be calculated, worded for the form; `null` when it can. */
 export function buyingCostsInputError(input: BuyingCostsInput): string | null {
-    const { price, deposit, extras = [] } = input;
-    if (!Number.isFinite(price) || price <= 0) return 'Enter the property price.';
+    const { price, deposit } = input;
+    // Checked as `unknown`: a form or plain JavaScript can pass anything here. Only leaving it out means none.
+    const extras: unknown = input.extras === undefined ? [] : input.extras;
+    if (!Number.isFinite(price) || price < BUYING_COSTS_LIMITS.price.min) return 'Enter the property price.';
     if (price > MAX_PRICE) return 'Enter a lower price.';
     if (!Number.isFinite(deposit) || deposit < 0) return 'Enter a deposit of £0 or more.';
     if (deposit > price) return 'The deposit is more than the price.';
     for (const { key, label } of BUYING_COST_FEES) {
         if (invalidFee(amount(input[key]))) return `Enter the ${label.toLowerCase()}, or leave it at 0.`;
     }
+    if (!Array.isArray(extras)) return 'Enter the other costs as a list.';
     if (extras.length > BUYING_COSTS_LIMITS.extras.max)
         return `Enter up to ${BUYING_COSTS_LIMITS.extras.max} other costs.`;
-    if (extras.some((extra) => invalidFee(extra.amount))) return 'Enter each other cost, or leave it at 0.';
+    if (!extras.every(isExtra)) return 'Enter each other cost, or leave it at 0.';
+    if (input.buyer !== undefined && !isBuyerType(input.buyer)) return 'Choose the type of buyer.';
     return null;
 }
 
 /** The maths alone; `null` for invalid input. Amounts are kept to the penny. */
 export function calculateBuyingCosts(input: BuyingCostsInput): BuyingCosts | null {
-    if (buyingCostsInputError(input)) return null;
+    return buyingCostsInputError(input) ? null : addUpCosts(input);
+}
+
+/** The costs for an input `buyingCostsInputError` has already passed. */
+function addUpCosts(input: BuyingCostsInput): BuyingCosts {
     const { price, deposit } = input;
     const stampDuty = calculateStampDuty({
         price,
@@ -112,7 +128,7 @@ export function calculateBuyingCosts(input: BuyingCostsInput): BuyingCosts | nul
         ...BUYING_COST_FEES.map(({ key, label }) => ({ key: key as string, label, value: amount(input[key]) })),
         ...(input.extras ?? []).map((extra, index) => ({
             key: `extra-${index}`,
-            label: extra.label.trim() || 'Other cost',
+            label: extra.label?.trim() || 'Other cost',
             value: extra.amount,
         })),
     ];
@@ -168,8 +184,8 @@ export function getBuyingCostsSummary(
     input: BuyingCostsInput,
 ): { summary: BuyingCostsSummary; error: null } | { summary: null; error: string } {
     const error = buyingCostsInputError(input);
-    const result = error ? null : calculateBuyingCosts(input);
-    if (error || !result) return { summary: null, error: error ?? 'Enter the property price.' };
+    if (error) return { summary: null, error };
+    const result = addUpCosts(input);
 
     const keys = Object.keys(BUYING_COSTS_LABELS) as BuyingCostsKey[];
     const formatted = Object.fromEntries(keys.map((key) => [key, pounds(result[key])])) as Record<

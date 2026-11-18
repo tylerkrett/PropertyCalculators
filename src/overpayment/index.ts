@@ -22,6 +22,7 @@ import {
 
 export { formatDuration, LOAN_LIMITS, type RemainingTerm } from './loan';
 export * from './remortgage';
+export * from './remortgage-summary';
 
 export const OVERPAYMENT_LIMITS = LOAN_LIMITS;
 
@@ -113,7 +114,11 @@ function payOff(balance: number, monthlyRate: number, payment: number, maxMonths
 
 /** The maths alone; `null` for invalid input. Pounds are rounded to the penny. */
 export function calculateOverpayment(input: OverpaymentInput): Overpayment | null {
-    if (overpaymentInputError(input)) return null;
+    return overpaymentInputError(input) ? null : replayOverpayment(input);
+}
+
+/** The overpayment for an input `overpaymentInputError` has already passed. */
+function replayOverpayment(input: OverpaymentInput): Overpayment {
     const { balance, rate } = input;
     const monthsBefore = toTermMonths(input);
     const monthlyRate = rate / 100 / 12;
@@ -162,19 +167,23 @@ export interface OverpaymentSummary extends Overpayment {
 
 /**
  * An overpayment with every figure and its display string: durations in plain English
- * ("3 years 4 months"), payments to the penny, interest to the pound. Either the summary or the
- * reason the input can't be calculated, never both.
+ * ("3 years 4 months"), payments to the penny, interest to the pound (the interest saved is the
+ * difference of the two totals as displayed). Either the summary or the reason the input can't be
+ * calculated, never both.
  */
 export function getOverpaymentSummary(
     input: OverpaymentInput,
 ): { summary: OverpaymentSummary; error: null } | { summary: null; error: string } {
     const error = overpaymentInputError(input);
-    const result = error ? null : calculateOverpayment(input);
-    if (error || !result) return { summary: null, error: error ?? 'Enter the mortgage balance.' };
+    if (error) return { summary: null, error };
+    const result = replayOverpayment(input);
 
     const keys = Object.keys(OVERPAYMENT_LABELS) as OverpaymentKey[];
     const display = (key: OverpaymentKey) => {
         if (key.startsWith('months')) return formatDuration(result[key]);
+        // The difference of the two totals as displayed, so the three interest rows add up to the pound.
+        if (key === 'interestSaved')
+            return formatPounds(Math.round(result.interestBefore) - Math.round(result.interestAfter));
         return key.endsWith('Payment') ? formatPoundsAndPence(result[key]) : formatPounds(result[key]);
     };
     const formatted = Object.fromEntries(keys.map((key) => [key, display(key)])) as Record<OverpaymentKey, string>;
