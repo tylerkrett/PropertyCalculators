@@ -52,6 +52,19 @@ estimate.bands[2].formatted;      // { range: "£250,001 – £925,000", rate: "
 | **[React components](#react-components)** | Each calculator as a drop-in component, styled by default and themeable. Optional. | `property-calculators/react` |
 | **[Branded PDFs](#branded-pdfs)** | Any result as a one-page PDF with your logo, colour and footer. No PDF library needed. | `property-calculators/pdf` |
 
+<table>
+<tr>
+<td width="50%" valign="top"><img alt="The stamp duty component: price, buyer type, headline figures and the band-by-band table" src="assets/components-stamp-duty-default.png"><br/><sub><b>Stamp duty</b>, with the working shown</sub></td>
+<td width="50%" valign="top"><img alt="The mortgage component: inputs, monthly payment and totals" src="assets/components-mortgage.png"><br/><sub><b>Mortgage</b>, with cash needed upfront</sub></td>
+</tr>
+</table>
+<table>
+<tr>
+<td width="50%" valign="top"><img alt="The rental yield component: net and gross yield with the costs behind them" src="assets/components-rental-yield.png"><br/><sub><b>Rental yield</b>, gross and net</sub></td>
+<td width="50%" valign="top"><img alt="A stamp duty estimate as a PDF carrying an estate agent’s logo and colour" src="assets/pdf-branded.png"><br/><sub><b>Any of them as a PDF</b> in your brand</sub></td>
+</tr>
+</table>
+
 - **Headless core.** Works with React, Vue, Svelte, a server template, a CLI or a spreadsheet export.
 - **Zero dependencies.** About 11 kB gzipped for the calculators, less if you import one; PDFs are a separate 7 kB that loads only when used. React is only needed if you use the components.
 - **Runs anywhere.** Node 18+, browsers, edge runtimes, React Native. ESM and CommonJS, fully typed.
@@ -124,13 +137,19 @@ import { createCalculator, CALCULATOR_LAYOUT } from 'property-calculators/calcul
 
 ## React components
 
-Three components, one import, no CSS file to load and nothing to configure.
+Four components, one import, no CSS file to load and nothing to configure.
 
 ```tsx
-import { DeskCalculator, MortgageCalculator, StampDutyCalculator } from 'property-calculators/react';
+import {
+    DeskCalculator,
+    MortgageCalculator,
+    RentalYieldCalculator,
+    StampDutyCalculator,
+} from 'property-calculators/react';
 
 <StampDutyCalculator defaultPrice={750_000} />
 <MortgageCalculator defaultPrice={500_000} />
+<RentalYieldCalculator defaultPrice={400_000} defaultRent={2_000} />
 <DeskCalculator rates={[{ currency: 'EUR', value: 0.86 }, { currency: 'USD', value: 0.79 }]} />
 ```
 
@@ -144,6 +163,18 @@ names), responsive down to phone width, and work with server rendering and the N
 <td width="33%" valign="top"><img alt="StampDutyCalculator restyled in red with a serif font and square corners" src="assets/components-stamp-duty-brand.png"><br/><sub><b>Yours</b>: five CSS variables</sub></td>
 </tr>
 </table>
+
+The other components, as they look with no props beyond a starting price:
+
+<table>
+<tr>
+<td width="33%" valign="top"><img alt="MortgageCalculator: price, deposit, rate, term and type in, monthly payment and totals out" src="assets/components-mortgage.png"><br/><sub><b>MortgageCalculator</b></sub></td>
+<td width="33%" valign="top"><img alt="RentalYieldCalculator: price, rent and costs in, net and gross yield out" src="assets/components-rental-yield.png"><br/><sub><b>RentalYieldCalculator</b></sub></td>
+<td width="33%" valign="top"><img alt="DeskCalculator: a display, a keypad of property conversions and a number keypad" src="assets/components-calculator.png"><br/><sub><b>DeskCalculator</b></sub></td>
+</tr>
+</table>
+
+<sub>The mortgage and rental yield shots use a red <code>--pc-accent</code> and the optional <a href="#branded-pdfs">Download PDF</a> button.</sub>
 
 ### Make them yours
 
@@ -241,11 +272,24 @@ Every calculator can hand its answer over as a PDF in your colours, with your lo
 the same page whichever calculator made it, so a stamp duty estimate, a mortgage and a rental
 yield from your site all look like they came from the same company.
 
+Each component on the left, and the PDF its button downloads on the right:
+
 <table>
 <tr>
-<td width="33%" valign="top"><img alt="A stamp duty estimate as a PDF with an estate agent's logo, a red accent colour, the property's address and a footer" src="assets/pdf-branded.png"><br/><sub><b>Yours</b>: logo, colour, address, footer</sub></td>
-<td width="33%" valign="top"><img alt="A rental yield estimate as a PDF in the same brand" src="assets/pdf-rental-yield.png"><br/><sub><b>Same brand</b>, another calculator</sub></td>
-<td width="33%" valign="top"><img alt="The same stamp duty estimate as a PDF with no branding" src="assets/pdf-plain.png"><br/><sub><b>Plain</b>: no options at all</sub></td>
+<td width="50%" valign="top"><img alt="The StampDutyCalculator component in a red brand colour, showing £131,250 of stamp duty on a £1,250,000 additional property, with a Download PDF button" src="assets/components-stamp-duty-pdf.png"><br/><sub><b>StampDutyCalculator</b> with <code>pdf={brand}</code></sub></td>
+<td width="50%" valign="top"><img alt="The PDF it downloads: the agent's logo, the property's address, £131,250 as the headline and the band-by-band table" src="assets/pdf-branded.png"><br/><sub><b>Its PDF</b>: logo, colour, address, footer</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img alt="The MortgageCalculator component with its inputs, a monthly payment of £3,543.43 and a Download PDF button" src="assets/components-mortgage.png"><br/><sub><b>MortgageCalculator</b> with <code>pdf={brand}</code></sub></td>
+<td width="50%" valign="top"><img alt="The mortgage PDF in the same brand: monthly payment as the headline, then the loan, interest, deposit, stamp duty and cash needed upfront" src="assets/pdf-mortgage.png"><br/><sub><b>Its PDF</b>, in the same brand</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img alt="The RentalYieldCalculator component showing a net yield of 4.41% and a gross yield of 6%, with a Download PDF button" src="assets/components-rental-yield.png"><br/><sub><b>RentalYieldCalculator</b> with <code>pdf={brand}</code></sub></td>
+<td width="50%" valign="top"><img alt="The rental yield PDF in the same brand: net yield as the headline, then the rent, costs, stamp duty and total cost of buying" src="assets/pdf-rental-yield.png"><br/><sub><b>Its PDF</b>, in the same brand</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img alt="A new-lease stamp duty PDF with a blue accent and the company name in place of a logo, showing separate tables for the premium and the rent" src="assets/pdf-lease.png"><br/><sub><b>New lease</b>: a name and colour, no logo (<code>leaseStampDutyPdf</code>)</sub></td>
+<td width="50%" valign="top"><img alt="The stamp duty PDF with no branding at all" src="assets/pdf-plain.png"><br/><sub><b>Plain</b>: no options at all</sub></td>
 </tr>
 </table>
 
@@ -407,6 +451,10 @@ Only `price` is required. A price that is negative or not a finite number throws
 
 The same £750,000 home, six ways:
 
+<p align="center"><img alt="A table of stamp duty on a £750,000 home for each buyer type, UK resident and non-UK resident, with the effective rate" src="assets/feature-buyers.png" width="640"><br/><sub>Every figure here is one <code>calculateStampDuty</code> call</sub></p>
+
+Or as a table you can copy:
+
 | Buyer | UK resident | Non-UK resident |
 | --- | ---: | ---: |
 | Home mover | £27,500 | £42,500 |
@@ -456,6 +504,9 @@ function StampDuty({ price, buyer, onBuyerChange }) {
 
 That is the whole component. Swap the tags for your own design system's.
 
+<p align="center"><img alt="The stamp duty calculator drawn from getStampDutyTable: three headline figures, then the breakdown table with a totals row" src="assets/components-stamp-duty-default.png" width="560"><br/><sub><code>summary</code> is the three tiles, <code>columns</code> and <code>rows</code> the table, <code>totals</code> its last line</sub></p>
+
+
 ### Listing pages
 
 Search results and property pages usually want one figure, not a breakdown.
@@ -472,6 +523,8 @@ stampDutyByPrice([650_000, 895_000, null]);
 getStaticStampDuty(1_250_000);         // "Stamp Duty £68,750"
 getStaticStampDuty(1_250_000, 1);      // null  (qualifier 1 = price on application)
 ```
+
+<p align="center"><img alt="Four property listings, each with its price and a one-line stamp duty figure; the price-on-application listing has none" src="assets/feature-listings.png" width="640"><br/><sub><code>getStaticStampDuty</code> on a results page: one line per card, and nothing for a price on application</sub></p>
 
 ### Form state
 
@@ -495,6 +548,8 @@ It is plain functions, so it drops into `useReducer`, a store, or react-use's
 `useMethods(methods, initialState)`. `STAMP_DUTY_FIELDS` describes the three checkboxes (name,
 label, which state key each one drives).
 
+<p align="center"><img alt="Three checkboxes for second home, first time buyer and non-UK resident, with second home ticked and the result of £65,000 below" src="assets/feature-form-state.png" width="560"><br/><sub>The three checkboxes come from <code>STAMP_DUTY_FIELDS</code>; the state keeps them consistent</sub></p>
+
 ### Serving it over HTTP
 
 Two helpers build a response body and a PDF model from a request, so a route is one line.
@@ -509,6 +564,8 @@ return Response.json(getStampDutyResponse({ ...query, price }));
 const model = getStampDutyPdfModel({ hash, address });
 // { address, price, stampDuty, actualRate, bands }: hand it to your PDF library
 ```
+
+<p align="center"><img alt="The JSON body returned for a £750,000 purchase: the bands with their formatted strings, then the total and the actual rate" src="assets/feature-http.png" width="520"><br/><sub>What the route returns</sub></p>
 
 Two things to know about `getStampDutyResponse`:
 
@@ -570,6 +627,13 @@ lease.formatted.stampDuty; // "£5,262"
 getLeaseStampDutyTable(lease); // { summary, columns, premium: { rows, totals }, rent: { rows, totals }, notes }
 ```
 
+<table>
+<tr>
+<td width="50%" valign="top"><img alt="The lease result drawn from getLeaseStampDutyTable: tax on the premium, tax on the rent and the total, then one table for each" src="assets/feature-lease.png"><br/><sub><code>getLeaseStampDutyTable(lease)</code>, drawn as it comes</sub></td>
+<td width="50%" valign="top"><img alt="The same kind of calculation as a PDF, with both tables and a note about first-time buyer relief" src="assets/pdf-lease.png"><br/><sub><code>leaseStampDutyPdf(lease, brand)</code></sub></td>
+</tr>
+</table>
+
 It takes the same `buyer`, `nonUkResident`, `propertyType` and `dwellings` options as
 `calculateStampDuty`, and applies the lease rules for you:
 
@@ -600,6 +664,8 @@ calculateStampDuty({ price: 275_000, propertyType: 'non-residential' }).stampDut
 | Up to £150,000 | 0% |
 | £150,001 to £250,000 | 2% |
 | Above £250,000 | 5% |
+
+<p align="center"><img alt="A table comparing stamp duty at residential and non-residential rates from £150,000 to £2,000,000, and six flats bought together taxed at non-residential rates" src="assets/feature-non-residential.png" width="640"><br/><sub>The two tables side by side, and the six-dwellings rule</sub></p>
 
 Six or more dwellings bought in one transaction are taxed at these rates too. Pass `dwellings`
 and the switch happens for you; `estimate.propertyType` tells you which table was used.
@@ -643,6 +709,8 @@ getRefundDeadlines({ purchaseDate: '2025-06-10', saleDate: '2026-02-01' });
 // { sellBy: "2028-06-10", filingDate: "2025-06-24", claimBy: "2027-02-01", soldInTime: true }
 ```
 
+<p align="center"><img alt="The four buyer questions with their answers, the explanation that higher rates apply but can be claimed back, the refund of £30,000, and the deadlines" src="assets/feature-main-residence.png" width="640"><br/><sub>The whole journey: questions from <code>BUYER_QUESTIONS</code>, the outcome from <code>resolveBuyer</code>, the refund and its dates</sub></p>
+
 ### What it doesn't cover
 
 The calculator handles one person or couple buying a home, a new lease, or non-residential
@@ -658,6 +726,13 @@ property. It does not model:
 ---
 
 ## Mortgage
+
+<table>
+<tr>
+<td width="50%" valign="top"><img alt="The MortgageCalculator component: price, deposit, rate, term, type and buyer in; monthly payment, loan, interest, deposit, stamp duty and cash needed upfront out" src="assets/components-mortgage.png"><br/><sub>The ready-made <code>&lt;MortgageCalculator /&gt;</code></sub></td>
+<td width="50%" valign="top"><img alt="The same mortgage as a branded PDF" src="assets/pdf-mortgage.png"><br/><sub>And <a href="#branded-pdfs">its PDF</a></sub></td>
+</tr>
+</table>
 
 ```ts
 import { getMortgageSummary } from 'property-calculators/mortgage';
@@ -712,6 +787,13 @@ for a pounds-or-percent deposit field, and `calculateMortgage` if you only want 
 
 For a buy-to-let: what the rent returns on what the property really costs.
 
+<table>
+<tr>
+<td width="50%" valign="top"><img alt="The RentalYieldCalculator component: price, rent, running costs, purchase costs and empty weeks in; net yield 4.41%, gross yield 6% and the working out" src="assets/components-rental-yield.png"><br/><sub>The ready-made <code>&lt;RentalYieldCalculator /&gt;</code></sub></td>
+<td width="50%" valign="top"><img alt="The same calculation as a branded PDF" src="assets/pdf-rental-yield.png"><br/><sub>And <a href="#branded-pdfs">its PDF</a></sub></td>
+</tr>
+</table>
+
 ```ts
 import { getRentalYieldSummary } from 'property-calculators/rental-yield';
 
@@ -751,6 +833,8 @@ getPortfolioYield([
 ])?.formatted;                  // { grossYield: "6.37%", netYield: "5.96%", annualRent: "£41,400", ... }
 ```
 
+<p align="center"><img alt="Three properties with their prices, rents and yields, and a portfolio row: gross yield and net yield across all three" src="assets/feature-portfolio.png" width="640"><br/><sub><code>getPortfolioYield</code>: the last row is the portfolio, weighted by value</sub></p>
+
 `rentalYieldInputError` gives the reason an input can't be calculated, `calculateRentalYield` the
 maths alone, and `RENT_PERIODS` the options for a select.
 
@@ -759,6 +843,8 @@ maths alone, and `RENT_PERIODS` the options for a select.
 ## Desk calculator
 
 A pocket calculator with the conversions property people reach for all day:
+
+<p align="center"><img alt="The DeskCalculator component: a display, a keypad of VAT, rent, area and currency conversions, and a number keypad" src="assets/components-calculator.png" width="560"><br/><sub>The ready-made <code>&lt;DeskCalculator /&gt;</code>; every button is data from <code>CALCULATOR_LAYOUT</code></sub></p>
 
 | Button | Does | Example |
 | --- | --- | --- |
