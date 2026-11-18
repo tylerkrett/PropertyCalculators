@@ -1,0 +1,51 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`It should be able to calculate the stamp duty 1`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 0,
+    "tax": 0,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 2,
+    "tax": 2500,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 5,
+    "tax": 25000,
+    "taxableSum": 500000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 10,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 12,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;

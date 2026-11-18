@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-label="property-calculators: UK stamp duty and mortgage maths, ready for any UI">
+<defs><style>
+.t{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+.m{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}</style>
+<radialGradient id="g" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#6fc3bb" stop-opacity=".20"/><stop offset="1" stop-color="#6fc3bb" stop-opacity="0"/></radialGradient>
+<pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="#6fc3bb" fill-opacity=".16"/></pattern>
+<filter id="lift" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity=".35"/></filter></defs>
+<rect width="1280" height="400" rx="28" fill="#12161c"/>
+<rect width="1280" height="400" rx="28" fill="url(#dots)"/>
+<circle cx="1010" cy="200" r="330" fill="url(#g)"/>
+<g transform="translate(96 60) scale(1.75)"><rect width="32" height="32" rx="8" fill="#6fc3bb"/><path d="M16 5.6 26.4 14.3V25a1.4 1.4 0 0 1-1.4 1.4H7A1.4 1.4 0 0 1 5.6 25V14.3z" fill="#12161c"/><rect x="11.2" y="15.4" width="9.6" height="2.4" rx="1.2" fill="#6fc3bb"/><rect x="11.2" y="19.8" width="9.6" height="2.4" rx="1.2" fill="#6fc3bb"/></g>
+<text x="170" y="102" class="m" font-size="36" font-weight="600" fill="#6fc3bb">property-calculators</text>
+<text x="96" y="184" class="t" font-size="40" font-weight="600" fill="#e8eaee">UK stamp duty and mortgage</text>
+<text x="96" y="232" class="t" font-size="40" font-weight="600" fill="#e8eaee">maths, ready for any UI</text>
+<text x="96" y="274" class="t" font-size="20" fill="#9aa3b2">Headless · Zero dependencies · TypeScript · ESM + CommonJS</text>
+<rect x="96" y="296" width="412" height="48" rx="12" fill="#1a2029" stroke="#2c3442"/>
+<text x="118" y="327" class="m" font-size="19" fill="#9aa3b2">$</text>
+<text x="140" y="327" class="m" font-size="19" fill="#e8eaee">npm install property-calculators</text>
+<g filter="url(#lift)"><rect x="820" y="64" width="372" height="272" rx="18" fill="#1a2029" stroke="#2c3442"/></g>
+<rect x="844" y="86" width="196" height="28" rx="14" fill="#1f3a39"/>
+<text x="942" y="105" text-anchor="middle" class="m" font-size="14" fill="#9fdcd5">calculateStampDuty()</text>
+<text x="844" y="148" class="t" font-size="13" fill="#9aa3b2">Stamp duty to pay</text>
+<text x="844" y="180" class="t" font-size="30" font-weight="600" fill="#e8eaee">£27,500</text>
+<text x="1168" y="180" text-anchor="end" class="t" font-size="15" fill="#9aa3b2">on £750,000 · 3.67%</text>
+<line x1="844" y1="202" x2="1168" y2="202" stroke="#2c3442"/>
+<text x="844" y="232" class="t" font-size="14" fill="#e8eaee">£0 – £125,000</text>
+<text x="1072" y="232" text-anchor="end" class="t" font-size="14" fill="#9aa3b2">0%</text>
+<text x="1168" y="232" text-anchor="end" class="t" font-size="14" font-weight="600" fill="#e8eaee">£0</text>
+<text x="844" y="262" class="t" font-size="14" fill="#e8eaee">£125,001 – £250,000</text>
+<text x="1072" y="262" text-anchor="end" class="t" font-size="14" fill="#9aa3b2">2%</text>
+<text x="1168" y="262" text-anchor="end" class="t" font-size="14" font-weight="600" fill="#e8eaee">£2,500</text>
+<text x="844" y="292" class="t" font-size="14" fill="#e8eaee">£250,001 – £925,000</text>
+<text x="1072" y="292" text-anchor="end" class="t" font-size="14" fill="#9aa3b2">5%</text>
+<text x="1168" y="292" text-anchor="end" class="t" font-size="14" font-weight="600" fill="#e8eaee">£25,000</text>
+<text x="844" y="318" class="t" font-size="13" font-weight="600" fill="#6fc3bb">Numbers, labels and table rows, ready to render</text>
+</svg>
