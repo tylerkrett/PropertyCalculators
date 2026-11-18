@@ -18,7 +18,12 @@ describe('StampDutyCalculator', () => {
 
     it('honours buyer type, residency and the breakdown switch', () => {
         const markup = html(
-            <StampDutyCalculator defaultPrice={750_000} defaultBuyer="additional-property" defaultNonUkResident showBreakdown={false} />,
+            <StampDutyCalculator
+                defaultPrice={750_000}
+                defaultBuyer="additional-property"
+                defaultNonUkResident
+                showBreakdown={false}
+            />,
         );
         expect(markup).toContain('£80,000');
         expect(markup).not.toContain('<table');
@@ -100,7 +105,14 @@ describe('styling', () => {
 
     it('adds caller classes after the built-in ones and passes other props to the root', () => {
         const markup = html(
-            <MortgageCalculator unstyled className="card" classNames={{ root: 'p-4', input: 'rounded-none', row: 'py-1' }} id="m" theme="dark" defaultPrice={500_000} />,
+            <MortgageCalculator
+                unstyled
+                className="card"
+                classNames={{ root: 'p-4', input: 'rounded-none', row: 'py-1' }}
+                id="m"
+                theme="dark"
+                defaultPrice={500_000}
+            />,
         );
         expect(markup).toContain('<div id="m" data-theme="dark" class="pc pc-mortgage card p-4">');
         expect(markup).toContain('class="pc-input rounded-none"');
@@ -108,7 +120,11 @@ describe('styling', () => {
     });
 
     it('has a rule for every class the components use', () => {
-        const markup = [<StampDutyCalculator key="s" defaultPrice={1} />, <MortgageCalculator key="m" defaultPrice={500_000} />, <DeskCalculator key="d" />]
+        const markup = [
+            <StampDutyCalculator key="s" defaultPrice={1} />,
+            <MortgageCalculator key="m" defaultPrice={500_000} />,
+            <DeskCalculator key="d" />,
+        ]
             .map((element) => html(element))
             .join('');
         const used = new Set([...markup.matchAll(/class="([^"]+)"/g)].flatMap((match) => match[1]!.split(' ')));

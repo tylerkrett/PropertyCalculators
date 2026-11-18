@@ -50,7 +50,8 @@ export function MortgageCalculator({
     const [priceText, setPriceText] = useState(defaultPrice ? formatNumber(defaultPrice) : '');
     const [depositText, setDepositText] = useState(() => {
         const deposit =
-            defaultDeposit ?? (defaultPrice ? depositFromPercent(defaultPrice, MORTGAGE_DEFAULTS.depositPercent) : undefined);
+            defaultDeposit ??
+            (defaultPrice ? depositFromPercent(defaultPrice, MORTGAGE_DEFAULTS.depositPercent) : undefined);
         return deposit === undefined ? '' : formatNumber(deposit);
     });
     const [rate, setRate] = useState(String(defaultRate));
@@ -176,7 +177,12 @@ export function MortgageCalculator({
             {summary ? (
                 <dl className={cx('rows')} aria-live="polite">
                     {summary.rows.map((row, index) => (
-                        <div key={row.key} className={cx('row')} data-key={row.key} data-lead={index === 0 || undefined}>
+                        <div
+                            key={row.key}
+                            className={cx('row')}
+                            data-key={row.key}
+                            data-lead={index === 0 || undefined}
+                        >
                             <dt>{row.label}</dt>
                             <dd>{row.formatted}</dd>
                         </div>

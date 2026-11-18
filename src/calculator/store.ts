@@ -20,8 +20,7 @@ const actionTypes = {
 };
 
 type Action =
-    | { type: symbol; payload: { value: CalculatorInput } }
-    | { type: symbol; payload: { values: ExchangeRate[] } };
+    { type: symbol; payload: { value: CalculatorInput } } | { type: symbol; payload: { values: ExchangeRate[] } };
 
 export function getInitialState(): CalculatorState {
     return { expression: [] };

@@ -1,5 +1,6 @@
 import { formatRange } from './format';
 import type { StampDutyEstimate } from './estimate';
+import type { LeaseStampDuty } from './lease';
 
 /*
  * The words a stamp duty UI needs, so both sites label things the same way. Nothing here is
@@ -52,7 +53,12 @@ export type StampDutyColumnKey = (typeof STAMP_DUTY_COLUMNS)[number]['key'];
 export function getStampDutyTable(estimate: StampDutyEstimate) {
     return {
         summary: [
-            { key: 'price', label: STAMP_DUTY_LABELS.price, value: estimate.price, formatted: estimate.formatted.price },
+            {
+                key: 'price',
+                label: STAMP_DUTY_LABELS.price,
+                value: estimate.price,
+                formatted: estimate.formatted.price,
+            },
             {
                 key: 'stampDuty',
                 label: STAMP_DUTY_LABELS.stampDuty,
@@ -69,5 +75,66 @@ export function getStampDutyTable(estimate: StampDutyEstimate) {
         columns: STAMP_DUTY_COLUMNS,
         rows: estimate.bands.map((band) => ({ key: `band_${band.from}`, ...band.formatted })),
         totals: { range: 'Total', rate: '', taxable: estimate.formatted.price, tax: estimate.formatted.stampDuty },
+    };
+}
+
+export const LEASE_LABELS = {
+    title: 'Stamp Duty on a new lease',
+    premium: 'Lease premium',
+    rent: 'Rent per year',
+    termYears: 'Lease length in years',
+    npv: 'Net present value of the rent',
+    premiumTax: 'Stamp Duty on the premium',
+    rentTax: 'Stamp Duty on the rent',
+    stampDuty: 'Stamp Duty to pay',
+    premiumBreakdown: 'How the premium was taxed',
+    rentBreakdown: 'How the rent was taxed',
+} as const;
+
+/**
+ * A lease result laid out for rendering: headline figures, then one breakdown table for the
+ * premium and one for the rent, each as columns and rows of strings.
+ */
+export function getLeaseStampDutyTable(lease: LeaseStampDuty) {
+    return {
+        summary: [
+            {
+                key: 'premium',
+                label: LEASE_LABELS.premium,
+                value: lease.premium.price,
+                formatted: lease.premium.formatted.price,
+            },
+            { key: 'npv', label: LEASE_LABELS.npv, value: lease.rent.npv, formatted: lease.rent.formatted.npv },
+            {
+                key: 'premiumTax',
+                label: LEASE_LABELS.premiumTax,
+                value: lease.premium.stampDuty,
+                formatted: lease.formatted.premiumTax,
+            },
+            { key: 'rentTax', label: LEASE_LABELS.rentTax, value: lease.rent.tax, formatted: lease.formatted.rentTax },
+            {
+                key: 'stampDuty',
+                label: LEASE_LABELS.stampDuty,
+                value: lease.stampDuty,
+                formatted: lease.formatted.stampDuty,
+            },
+        ],
+        columns: STAMP_DUTY_COLUMNS,
+        premium: {
+            label: LEASE_LABELS.premiumBreakdown,
+            rows: lease.premium.bands.map((band) => ({ key: `premium_${band.from}`, ...band.formatted })),
+            totals: {
+                range: 'Total',
+                rate: '',
+                taxable: lease.premium.formatted.price,
+                tax: lease.formatted.premiumTax,
+            },
+        },
+        rent: {
+            label: LEASE_LABELS.rentBreakdown,
+            rows: lease.rent.bands.map((band) => ({ key: `rent_${band.from}`, ...band.formatted })),
+            totals: { range: 'Total', rate: '', taxable: lease.rent.formatted.npv, tax: lease.formatted.rentTax },
+        },
+        notes: lease.notes,
     };
 }

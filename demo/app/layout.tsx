@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 import './globals.css';
+import './forms.css';
+import './results.css';
+import './calculator.css';
 
 export const metadata: Metadata = {
     title: 'property-calculators demo',

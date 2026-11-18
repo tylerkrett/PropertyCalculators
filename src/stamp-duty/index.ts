@@ -4,4 +4,7 @@ export * from './calculate';
 export * from './estimate';
 export * from './format';
 export * from './labels';
+export * from './lease';
+export * from './main-residence';
+export * from './rent';
 export * from './state';

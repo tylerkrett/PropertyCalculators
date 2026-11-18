@@ -79,7 +79,8 @@ describe('layout', () => {
 
     it('drives the calculator from layout data alone', () => {
         const calculator = createCalculator();
-        const press = (id: string) => calculator.input([...BASIC_BUTTONS, ...EXTRA_BUTTONS].find((b) => b.id === id)!.value);
+        const press = (id: string) =>
+            calculator.input([...BASIC_BUTTONS, ...EXTRA_BUTTONS].find((b) => b.id === id)!.value);
         ['digit-1', 'digit-0', 'digit-0', 'digit-0', 'pw-pcm'].forEach(press);
         expect(calculator.getDisplay()).toBe('4333');
     });

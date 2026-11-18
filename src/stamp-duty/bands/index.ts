@@ -6,6 +6,7 @@ import * as secondHome from './second-home';
 import * as secondHomeNonUkResident from './second-home-non-uk-resident';
 
 export type { Band } from './types';
+export * from './non-residential';
 
 /**
  * Every rate table, for pages that show the rates themselves. Each has `initialThreshold`

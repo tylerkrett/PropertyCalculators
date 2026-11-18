@@ -72,7 +72,11 @@ describe('calculator robustness', () => {
         const next = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
         for (let run = 0; run < 3000; run++) {
             const calculator = createCalculator();
-            if (run % 2) calculator.setRates([{ currency: 'EUR', value: 0.86 }, { currency: 'USD', value: 0.79 }]);
+            if (run % 2)
+                calculator.setRates([
+                    { currency: 'EUR', value: 0.86 },
+                    { currency: 'USD', value: 0.79 },
+                ]);
             for (let step = 0; step < 25; step++) calculator.input(inputs[Math.floor(next() * inputs.length)]!);
             expect(typeof calculator.getDisplay()).toBe('string');
         }

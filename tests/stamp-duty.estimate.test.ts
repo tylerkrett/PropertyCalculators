@@ -105,7 +105,12 @@ describe('HTTP helpers', () => {
     it('reproduces GET /api/stamp-duty/{price}', () => {
         const body = JSON.parse(
             JSON.stringify(
-                getStampDutyResponse({ price: '1600000', ukResident: 'true', firstTimeBuyer: 'false', secondHome: 'false' }),
+                getStampDutyResponse({
+                    price: '1600000',
+                    ukResident: 'true',
+                    firstTimeBuyer: 'false',
+                    secondHome: 'false',
+                }),
             ),
         );
         expect(body.stampDuty).toEqual({ value: 105_750, formatted: '£105,750' });

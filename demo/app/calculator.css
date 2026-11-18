@@ -1,0 +1,80 @@
+/* The hand-built desk calculator: display and keypads. */
+
+.calculator {
+    display: grid;
+    gap: 12px;
+    max-width: 560px;
+}
+
+:where(.handmade) output {
+    display: block;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--soft);
+    text-align: right;
+    font:
+        600 30px/1.2 ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        monospace;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.pads {
+    display: grid;
+    grid-template-columns: 2fr 3fr;
+    gap: 12px;
+}
+
+.pad {
+    display: grid;
+    gap: 6px;
+}
+
+.pad button {
+    min-height: 46px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.pad button:hover:not(:disabled) {
+    border-color: var(--accent);
+}
+
+.pad button:active:not(:disabled) {
+    background: var(--soft);
+}
+
+.pad button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pad button[data-variant='operator'] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    font-size: 18px;
+}
+
+.pad button[data-variant='clear'] {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.pad button[data-variant='function'] {
+    background: var(--soft);
+    font-size: 14px;
+}
+
+@media (max-width: 560px) {
+    .pads {
+        grid-template-columns: 1fr;
+    }
+}

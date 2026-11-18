@@ -40,13 +40,21 @@ export default function Mortgage() {
                 <label>
                     <span>Property price</span>
                     <div className="money">
-                        <input inputMode="decimal" value={priceText} onChange={(event) => setPriceText(event.target.value)} />
+                        <input
+                            inputMode="decimal"
+                            value={priceText}
+                            onChange={(event) => setPriceText(event.target.value)}
+                        />
                     </div>
                 </label>
                 <label>
                     <span>Deposit</span>
                     <div className="money">
-                        <input inputMode="decimal" value={depositText} onChange={(event) => setDepositText(event.target.value)} />
+                        <input
+                            inputMode="decimal"
+                            value={depositText}
+                            onChange={(event) => setDepositText(event.target.value)}
+                        />
                     </div>
                 </label>
                 <label>

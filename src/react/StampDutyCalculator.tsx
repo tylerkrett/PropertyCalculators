@@ -83,7 +83,11 @@ export function StampDutyCalculator({
                     <legend className={cx('label')}>Buyer</legend>
                     <div className={cx('options')}>
                         {BUYER_TYPES.map((option) => (
-                            <label key={option.value} className={cx('option')} data-checked={buyer === option.value || undefined}>
+                            <label
+                                key={option.value}
+                                className={cx('option')}
+                                data-checked={buyer === option.value || undefined}
+                            >
                                 <input
                                     type="radio"
                                     name={`${id}buyer`}

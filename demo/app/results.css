@@ -1,0 +1,105 @@
+/* Result panels for the hand-built demo page: headline figures, rows and the breakdown table. */
+
+.summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 0;
+}
+
+.summary div {
+    background: var(--soft);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+:where(.handmade) dt {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+:where(.handmade) dd {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.rows {
+    margin: 0;
+    display: grid;
+}
+
+.rows div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+}
+
+.rows dt {
+    font-size: 15px;
+}
+
+.rows dd {
+    font-size: 16px;
+}
+
+.rows .lead {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.rows .lead dd {
+    font-size: 28px;
+    color: var(--accent);
+}
+
+.scroll {
+    overflow-x: auto;
+}
+
+:where(.handmade) table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+}
+
+:where(.handmade) th,
+:where(.handmade) td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+}
+
+:where(.handmade) th {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+:where(.handmade) th:first-child,
+:where(.handmade) td:first-child {
+    padding-left: 0;
+}
+
+:where(.handmade) th:last-child,
+:where(.handmade) td:last-child {
+    padding-right: 0;
+}
+
+.left {
+    text-align: left;
+}
+
+.right {
+    text-align: right;
+}
+
+:where(.handmade) tfoot td {
+    border-bottom: 0;
+    font-weight: 600;
+}

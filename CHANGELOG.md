@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+- **New leases:** `calculateLeaseStampDuty` taxes the premium and the rent (through its net
+  present value), with the lease rules for surcharges and first-time buyer relief applied.
+  `calculateRentNpv` gives the rent figure alone.
+- **Non-residential and mixed use:** `calculateStampDuty` takes `propertyType`, and `dwellings`
+  for the six-or-more rule. Estimates now include `propertyType`.
+- **Replacing a main residence:** `resolveBuyer` picks the buyer type from yes/no answers,
+  `getHigherRatesRefund` gives the surcharge that can be claimed back, and `getRefundDeadlines`
+  the dates.
+
 ## 1.0.0
 
 First release.

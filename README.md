@@ -45,7 +45,7 @@ estimate.bands[2].formatted;      // { range: "£250,001 – £925,000", rate: "
 
 | | | |
 | --- | --- | --- |
-| **[Stamp duty](#stamp-duty)** | SDLT for home movers, first-time buyers, additional properties and non-UK residents, with the band-by-band breakdown. | `property-calculators` |
+| **[Stamp duty](#stamp-duty)** | SDLT for home movers, first-time buyers, additional properties and non-UK residents, with the band-by-band breakdown. Also [new leases](#new-leases), [non-residential property](#non-residential-and-mixed-use) and [replacing a main home](#replacing-a-main-residence). | `property-calculators` |
 | **[Mortgage](#mortgage)** | Monthly payment, total interest, loan to value, and the cash you need upfront with stamp duty included. | `property-calculators/mortgage` |
 | **[Desk calculator](#desk-calculator)** | A pocket calculator that also does VAT, rent per week ↔ per month, ft² ↔ m², and £ ↔ € or $. | `property-calculators/calculator` |
 | **[React components](#react-components)** | All three as drop-in components, styled by default and themeable. Optional. | `property-calculators/react` |
@@ -407,17 +407,114 @@ The tables themselves are exported as `BAND_TABLES` if you want to render a rate
 against [GOV.UK's residential rates](https://www.gov.uk/stamp-duty-land-tax/residential-property-rates)
 before relying on them after a Budget.
 
+### New leases
+
+Buying a new lease is taxed twice: once on the **premium** (the lump sum, taxed like a purchase
+price) and once on the **rent**. The rent is taxed through its *net present value*: every year's
+rent, discounted by 3.5% a year back to today, added up over the whole lease.
+
+```ts
+import { calculateLeaseStampDuty, getLeaseStampDutyTable } from 'property-calculators';
+
+const lease = calculateLeaseStampDuty({
+  premium: 275_000,
+  rent: 10_000,       // per year; or up to five numbers for the first five years
+  termYears: 99,
+});
+
+lease.premium.stampDuty;   // 3750    tax on the premium, with lease.premium.bands
+lease.rent.npv;            // 276233  net present value of the rent
+lease.rent.tax;            // 1512    1% of the value above £125,000
+lease.stampDuty;           // 5262
+lease.formatted.stampDuty; // "£5,262"
+
+getLeaseStampDutyTable(lease); // { summary, columns, premium: { rows, totals }, rent: { rows, totals }, notes }
+```
+
+It takes the same `buyer`, `nonUkResident`, `propertyType` and `dwellings` options as
+`calculateStampDuty`, and applies the lease rules for you:
+
+| Rule | What happens |
+| --- | --- |
+| Additional-property surcharge | Charged on the premium only, never on rent. |
+| Non-UK resident surcharge | Adds 2 points to the rent bands as well (2% and 3%). Needs a premium of £40,000 or a rent of £1,000 a year. |
+| Lease of 7 years or fewer | Neither surcharge applies. |
+| First-time buyer relief | Premium only, and only for a lease of 21 years or more. |
+| Rent after year five | Uses the highest rent of the first five years. |
+
+When a relief or surcharge you asked for is not applied, `lease.notes` says why in plain English,
+and `lease.applied` records what was charged. Need only the rent figure? `calculateRentNpv({ rent, termYears })`.
+
+An existing lease that is sold on is taxed on its price alone: use `calculateStampDuty` for that.
+
+### Non-residential and mixed use
+
+Shops, offices, farmland and mixed property (a flat above a shop) have their own table, with no
+reliefs or surcharges.
+
+```ts
+calculateStampDuty({ price: 275_000, propertyType: 'non-residential' }).stampDuty; // 3250
+```
+
+| Slice of the price | Rate |
+| --- | ---: |
+| Up to £150,000 | 0% |
+| £150,001 to £250,000 | 2% |
+| Above £250,000 | 5% |
+
+Six or more dwellings bought in one transaction are taxed at these rates too. Pass `dwellings`
+and the switch happens for you; `estimate.propertyType` tells you which table was used.
+
+```ts
+calculateStampDuty({ price: 2_000_000, dwellings: 6 }).propertyType; // "non-residential"
+```
+
+Rent on a new non-residential lease is charged at 0% up to £150,000 of net present value, 1% to
+£5 million and 2% above: `calculateLeaseStampDuty({ ..., propertyType: 'non-residential' })`.
+
+### Replacing a main residence
+
+Someone who already owns a property pays the additional-property rates, unless the purchase
+replaces their main home and the old one is already sold. `resolveBuyer` turns the yes/no answers
+into the buyer type, with a sentence to show the user. `BUYER_QUESTIONS` has the question wording.
+
+```ts
+import { resolveBuyer, getHigherRatesRefund, getRefundDeadlines } from 'property-calculators';
+
+const answer = resolveBuyer({
+  ownsOtherProperty: true,
+  replacingMainResidence: true,
+  previousHomeSold: false,
+});
+
+answer.buyer;          // "additional-property"
+answer.refundPossible; // true
+answer.explanation;    // "Your previous main residence is not sold yet, so the higher rates apply. You can claim…"
+
+calculateStampDuty({ price: 600_000, buyer: answer.buyer }).stampDuty; // 50000
+```
+
+If the old home sells within three years, the extra can be claimed back:
+
+```ts
+getHigherRatesRefund({ price: 600_000 });
+// { paid: 50000, standard: 20000, refund: 30000, formatted: { refund: "£30,000", … } }
+
+getRefundDeadlines({ purchaseDate: '2025-06-10', saleDate: '2026-02-01' });
+// { sellBy: "2028-06-10", filingDate: "2025-06-24", claimBy: "2027-02-01", soldInTime: true }
+```
+
 ### What it doesn't cover
 
-The calculator answers the question most buyers ask: one person or couple buying one freehold or
-long-leasehold home. It does not model:
+The calculator handles one person or couple buying a home, a new lease, or non-residential
+property. It does not model:
 
 - Scotland or Wales
 - Purchases by companies (including the flat 17% rate on homes over £500,000)
-- Commercial or mixed-use property
-- Tax on the rent of a new lease
-- Shared ownership, multiple dwellings in one transaction, or linked transactions
-- Refunds of the additional-property surcharge when a previous main home is sold later
+- Shared ownership and linked transactions
+- Rates before 1 April 2025
+- Rent under an assured tenancy, which is excluded from the rent charge from 1 May 2026
+- Every exception to the surcharges (trusts, partnerships, separated spouses and so on)
 
 ---
 
@@ -646,6 +743,8 @@ Tax software has to be boring. This is what stands behind the numbers:
 - **Whole-pound rounding.** Tax is rounded down to the pound. The calculation multiplies before
   it divides, so floating point never shaves a pound off. (A naive `price / 100 * rate` gets
   £925,820 at additional-property rates wrong by £1.)
+- **Checked against HMRC's own examples.** The rent calculation reproduces the worked example in
+  HMRC's manual (SDLTM13080) to the pound, and the non-residential table GOV.UK's £275,000 example.
 - **Every band edge is tested.** For all six buyer combinations, every pound within £1,500 of
   every threshold is compared against exact integer arithmetic.
 - **The breakdown always adds up.** The taxable slices sum to the price, and the per-band tax
@@ -675,13 +774,23 @@ Run the suite yourself with `npm test`.
 | `methods`, `initialState`, `canCalculate` | Form state. |
 | `getBands(price, flags)`, `getStampDuty(price, bands)`, `computeActualRate(price, bands)` | The primitives. `ukResident` must be `true` to avoid the surcharge. |
 | `BAND_TABLES`, `SDLT_JURISDICTION`, `SDLT_RATES_EFFECTIVE_FROM` | The rate tables and what they apply to. |
+| `calculateLeaseStampDuty(input)` | Tax on a new lease: premium plus rent, with both breakdowns, `applied` and `notes`. |
+| `calculateRentNpv({ rent, termYears })` | Net present value of the rent, rounded down to the pound. |
+| `getLeaseStampDutyTable(lease)`, `LEASE_LABELS` | A lease result as summary rows and two tables of strings. |
+| `PROPERTY_TYPES`, `isPropertyType`, `resolvePropertyType` | Residential or non-residential, and the six-dwellings rule. |
+| `NON_RESIDENTIAL_BANDS`, `RESIDENTIAL_RENT_BANDS`, `NON_RESIDENTIAL_RENT_BANDS` | The non-residential and rent rate tables. |
+| `resolveBuyer(answers)`, `BUYER_QUESTIONS` | Buyer type from yes/no answers, with the reason. |
+| `getHigherRatesRefund({ price })` | The surcharge that can be claimed back when a previous home sells. |
+| `getRefundDeadlines({ purchaseDate, saleDate? })` | Sell-by, filing and claim-by dates. |
 | `getStampDutyResponse(query)`, `parseStampDutyQuery(query)` | HTTP response body from query-string flags. |
 | `getStampDutyPdfModel({ hash, address })`, `encodeStampDutyHash`, `decodeStampDutyHash` | PDF model and its URL hash. |
 | `isValidPrice`, `parsePriceParam`, `parsePrice`, `MAX_PRICE` | Validation and parsing. |
 | `formatPounds`, `formatPoundsAndPence`, `formatRate`, `formatBandRange` | `£1,250,000`, `£2,338.36`, `12.5%`, `£125,001 – £250,000`. |
 | `formatPrice`, `formatPercentage`, `formatRange`, `formatNumber` | Fixed-decimal variants: `£43,750.00`, `5.00%`. |
 
-Types: `StampDutyInput`, `StampDutyEstimate`, `StampDutyBand`, `BuyerType`, `Band`,
+Types: `StampDutyInput`, `StampDutyEstimate`, `StampDutyBand`, `BuyerType`, `PropertyType`,
+`LeaseStampDutyInput`, `LeaseStampDuty`, `RentInput`, `BuyerAnswers`, `BuyerResolution`,
+`HigherRatesRefund`, `RefundDeadlines`, `Band`,
 `CalculatedBand`, `BandOptions`, `State`, `StampDutyResponse`, `StampDutyPdfModel`.
 
 </details>
@@ -762,6 +871,8 @@ address you pass to the PDF model comes back unchanged, so escape it as you woul
 npm install
 npm test            # vitest
 npm run type-check
+npm run lint        # formatting, and no file over 250 lines
+npm run format      # fix formatting
 npm run build       # ESM, CommonJS and type declarations into dist/
 npm run demo        # the Next.js demo; add `npm run build:watch` in another terminal for live edits
 ```

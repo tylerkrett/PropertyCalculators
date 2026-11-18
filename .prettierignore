@@ -1,0 +1,11 @@
+dist
+node_modules
+.next
+coverage
+package-lock.json
+tests/__snapshots__
+next-env.d.ts
+*.md
+assets
+.github
+demo/tsconfig.json

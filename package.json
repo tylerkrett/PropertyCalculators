@@ -1,6 +1,6 @@
 {
     "name": "property-calculators",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "UK stamp duty (SDLT), mortgage and property desk-calculator logic. Headless core with no dependencies, plus optional ready-made React components.",
     "keywords": [
         "stamp duty",
@@ -85,9 +85,11 @@
         "prepare": "tsup",
         "test": "vitest run",
         "type-check": "tsc --noEmit",
-        "prepublishOnly": "npm run type-check && npm test",
+        "prepublishOnly": "npm run lint && npm run type-check && npm test",
         "demo": "npm run build && npm --prefix demo install && npm --prefix demo run dev",
-        "build:watch": "tsup --watch"
+        "build:watch": "tsup --watch",
+        "format": "prettier --write .",
+        "lint": "prettier --check . && node scripts/check-file-length.mjs"
     },
     "peerDependencies": {
         "react": ">=18"
@@ -100,6 +102,7 @@
     "devDependencies": {
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
+        "prettier": "^3.10.1",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
         "tsup": "^8.5.0",

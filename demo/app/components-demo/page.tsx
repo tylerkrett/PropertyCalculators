@@ -38,8 +38,8 @@ export default function ComponentsDemo() {
             <header>
                 <h1>Ready-made components</h1>
                 <p>
-                    Imported from <code>property-calculators/react</code> with no CSS file and no setup. Switch the
-                    look to see the same three components themed. <a href="/">Back to the build-your-own demo</a>
+                    Imported from <code>property-calculators/react</code> with no CSS file and no setup. Switch the look
+                    to see the same three components themed. <a href="/">Back to the build-your-own demo</a>
                 </p>
                 <div className="segmented" role="group" aria-label="Look">
                     {(Object.keys(LOOKS) as Look[]).map((key) => (

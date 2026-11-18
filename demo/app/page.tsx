@@ -10,8 +10,8 @@ export default function Page() {
             <header>
                 <h1>property-calculators</h1>
                 <p>
-                    Every number, label and table row below comes from the library. This app only draws them. SDLT
-                    rates for {SDLT_JURISDICTION}, in force from {SDLT_RATES_EFFECTIVE_FROM}. Estimates, not advice.
+                    Every number, label and table row below comes from the library. This app only draws them. SDLT rates
+                    for {SDLT_JURISDICTION}, in force from {SDLT_RATES_EFFECTIVE_FROM}. Estimates, not advice.
                 </p>
             </header>
 

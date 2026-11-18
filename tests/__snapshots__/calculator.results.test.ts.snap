@@ -1,0 +1,35 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`It should be able to clear final values when deleting; 1`] = `
+[
+  0,
+]
+`;
+
+exports[`It should be able to compute the percentage when the last value is final; 1`] = `"15"`;
+
+exports[`It should be able to gracefully handled infinity values; 1`] = `"7"`;
+
+exports[`It should be able to gracefully handled infinity values; 2`] = `"∞"`;
+
+exports[`It should be able to gracefully handled infinity values; 3`] = `"0."`;
+
+exports[`It should be able to gracefully handled infinity values; 4`] = `"∞"`;
+
+exports[`It should be able to gracefully handled infinity values; 5`] = `"∞"`;
+
+exports[`It should be able to gracefully handled infinity values; 6`] = `"∞"`;
+
+exports[`It should be able to handle big numbers when calculating with standard numbers; 1`] = `"999999999999999983222784"`;
+
+exports[`It should be able to handle big numbers when calculating with standard numbers; 2`] = `"18014398509481982"`;
+
+exports[`It should be able to start decimals from scratch when last value is final; 1`] = `"0."`;
+
+exports[`It should be able to start the number from scratch when last value is final; 1`] = `"5"`;
+
+exports[`It should be able to unwrap and invert the final value; 1`] = `"-10"`;
+
+exports[`It should be able to unwrap and invert the final value; 2`] = `"25"`;
+
+exports[`It should be able to unwrap the final value when performing a calculation; 1`] = `"2×"`;

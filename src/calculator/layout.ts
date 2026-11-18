@@ -107,4 +107,9 @@ export const CALCULATOR_TEXT = {
 } as const;
 
 /** The fixed conversion factors the engine uses, for labels and tooltips. */
-export const CONVERSIONS = { vatRate: 20, squareFeetPerSquareMetre: 10.7639, weeksPerYear: 52, monthsPerYear: 12 } as const;
+export const CONVERSIONS = {
+    vatRate: 20,
+    squareFeetPerSquareMetre: 10.7639,
+    weeksPerYear: 52,
+    monthsPerYear: 12,
+} as const;

@@ -1,0 +1,762 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`It should be able to determine the bands and calculations for first timer buyer and non-UK resident applicants 1`] = `
+[
+  {
+    "range": [
+      0,
+      39999,
+    ],
+    "rate": 0,
+    "tax": 0,
+    "taxableSum": 39999,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for first timer buyer and non-UK resident applicants 2`] = `
+[
+  {
+    "range": [
+      0,
+      300000,
+    ],
+    "rate": 2,
+    "tax": 800,
+    "taxableSum": 40000,
+  },
+  {
+    "range": [
+      300000,
+      500000,
+    ],
+    "rate": 7,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for first timer buyer and non-UK resident applicants 3`] = `
+[
+  {
+    "range": [
+      0,
+      300000,
+    ],
+    "rate": 2,
+    "tax": 4999,
+    "taxableSum": 249999,
+  },
+  {
+    "range": [
+      300000,
+      500000,
+    ],
+    "rate": 7,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for first timer buyer and non-UK resident applicants 4`] = `
+[
+  {
+    "range": [
+      0,
+      300000,
+    ],
+    "rate": 2,
+    "tax": 6000,
+    "taxableSum": 300000,
+  },
+  {
+    "range": [
+      300000,
+      500000,
+    ],
+    "rate": 7,
+    "tax": 14000,
+    "taxableSum": 200000,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for first timer buyer and non-UK resident applicants 5`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 2,
+    "tax": 2500,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 4,
+    "tax": 5000,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 7,
+    "tax": 47250,
+    "taxableSum": 675000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 12,
+    "tax": 69000,
+    "taxableSum": 575000,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 14,
+    "tax": 14000,
+    "taxableSum": 100000,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for first timer buyer and non-UK resident applicants 6`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 2,
+    "tax": 2500,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 4,
+    "tax": 5000,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 7,
+    "tax": 47250,
+    "taxableSum": 675000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 12,
+    "tax": 69000,
+    "taxableSum": 575000,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 14,
+    "tax": 525000,
+    "taxableSum": 3750000,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for non-UK resident applicants 1`] = `
+[
+  {
+    "range": [
+      0,
+      39999,
+    ],
+    "rate": 0,
+    "tax": 0,
+    "taxableSum": 39999,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for non-UK resident applicants 2`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 2,
+    "tax": 800,
+    "taxableSum": 40000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 4,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 7,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 12,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 14,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for non-UK resident applicants 3`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 2,
+    "tax": 2500,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 4,
+    "tax": 5000,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 7,
+    "tax": 3499,
+    "taxableSum": 49999,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 12,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 14,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for non-UK resident applicants 4`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 2,
+    "tax": 2500,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 4,
+    "tax": 5000,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 7,
+    "tax": 3500,
+    "taxableSum": 50000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 12,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 14,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for non-UK resident applicants 5`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 2,
+    "tax": 2500,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 4,
+    "tax": 5000,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 7,
+    "tax": 35000,
+    "taxableSum": 500000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 12,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 14,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for non-UK resident applicants 6`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 2,
+    "tax": 2500,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 4,
+    "tax": 5000,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 7,
+    "tax": 47250,
+    "taxableSum": 675000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 12,
+    "tax": 69000,
+    "taxableSum": 575000,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 14,
+    "tax": 525000,
+    "taxableSum": 3750000,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for second home and non-UK resident applicants 1`] = `
+[
+  {
+    "range": [
+      0,
+      39999,
+    ],
+    "rate": 0,
+    "tax": 0,
+    "taxableSum": 39999,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for second home and non-UK resident applicants 2`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 7,
+    "tax": 2800,
+    "taxableSum": 40000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 9,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 12,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 17,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 19,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for second home and non-UK resident applicants 3`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 7,
+    "tax": 8750,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 9,
+    "tax": 11250,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 12,
+    "tax": 5999,
+    "taxableSum": 49999,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 17,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 19,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for second home and non-UK resident applicants 4`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 7,
+    "tax": 8750,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 9,
+    "tax": 11250,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 12,
+    "tax": 6000,
+    "taxableSum": 50000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 17,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 19,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for second home and non-UK resident applicants 5`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 7,
+    "tax": 8750,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 9,
+    "tax": 11250,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 12,
+    "tax": 60000,
+    "taxableSum": 500000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 17,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 19,
+    "tax": 0,
+    "taxableSum": 0,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for second home and non-UK resident applicants 6`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 7,
+    "tax": 8750,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 9,
+    "tax": 11250,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 12,
+    "tax": 81000,
+    "taxableSum": 675000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 17,
+    "tax": 97750,
+    "taxableSum": 575000,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 19,
+    "tax": 712500,
+    "taxableSum": 3750000,
+  },
+]
+`;
+
+exports[`It should be able to determine the bands and calculations for second home and non-UK resident applicants 7`] = `
+[
+  {
+    "range": [
+      0,
+      125000,
+    ],
+    "rate": 7,
+    "tax": 8750,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      125000,
+      250000,
+    ],
+    "rate": 9,
+    "tax": 11250,
+    "taxableSum": 125000,
+  },
+  {
+    "range": [
+      250000,
+      925000,
+    ],
+    "rate": 12,
+    "tax": 81000,
+    "taxableSum": 675000,
+  },
+  {
+    "range": [
+      925000,
+      1500000,
+    ],
+    "rate": 17,
+    "tax": 97750,
+    "taxableSum": 575000,
+  },
+  {
+    "range": [
+      1500000,
+      Infinity,
+    ],
+    "rate": 19,
+    "tax": 332500,
+    "taxableSum": 1750000,
+  },
+]
+`;

@@ -16,7 +16,10 @@ export default function StampDuty() {
     const [nonUkResident, setNonUkResident] = useState(false);
 
     const price = parsePrice(priceText);
-    const table = Number.isFinite(price) && price > 0 ? getStampDutyTable(calculateStampDuty({ price, buyer, nonUkResident })) : null;
+    const table =
+        Number.isFinite(price) && price > 0
+            ? getStampDutyTable(calculateStampDuty({ price, buyer, nonUkResident }))
+            : null;
 
     return (
         <section>
@@ -26,7 +29,11 @@ export default function StampDuty() {
                 <label>
                     <span>{STAMP_DUTY_LABELS.price}</span>
                     <div className="money">
-                        <input inputMode="decimal" value={priceText} onChange={(event) => setPriceText(event.target.value)} />
+                        <input
+                            inputMode="decimal"
+                            value={priceText}
+                            onChange={(event) => setPriceText(event.target.value)}
+                        />
                     </div>
                 </label>
 
@@ -48,7 +55,11 @@ export default function StampDuty() {
                 </fieldset>
 
                 <label className="check">
-                    <input type="checkbox" checked={nonUkResident} onChange={(event) => setNonUkResident(event.target.checked)} />
+                    <input
+                        type="checkbox"
+                        checked={nonUkResident}
+                        onChange={(event) => setNonUkResident(event.target.checked)}
+                    />
                     <span>{STAMP_DUTY_LABELS.nonUkResident}</span>
                 </label>
             </div>

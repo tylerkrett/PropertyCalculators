@@ -1,0 +1,67 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`It should be able to assume the second value is the same as first when calculating; 1`] = `"100"`;
+
+exports[`It should be able to calculate the VAT both plus and minus; 1`] = `"12"`;
+
+exports[`It should be able to calculate the VAT both plus and minus; 2`] = `"8.33"`;
+
+exports[`It should be able to calculate the VAT both plus and minus; 3`] = `"9.6"`;
+
+exports[`It should be able to calculate the VAT both plus and minus; 4`] = `"8.5+"`;
+
+exports[`It should be able to calculate the VAT both plus and minus; 5`] = `
+[
+  0,
+]
+`;
+
+exports[`It should be able to calculate the percentage of the last entered number; 1`] = `"0.1"`;
+
+exports[`It should be able to calculate the percentage of the last entered number; 2`] = `
+[
+  0,
+]
+`;
+
+exports[`It should be able to calculate the percentage of the last entered number; 3`] = `"0.205"`;
+
+exports[`It should be able to calculate the percentage of the last entered number; 4`] = `"0.15"`;
+
+exports[`It should be able to evaluate expression before calculating percentage; 1`] = `"1"`;
+
+exports[`It should be able to handle 0.1 + 0.2 to equal 0.3; 1`] = `"0.3"`;
+
+exports[`It should be able to handle K and M letters; 1`] = `"1000"`;
+
+exports[`It should be able to handle K and M letters; 2`] = `"5000000"`;
+
+exports[`It should be able to handle divide by zero; 1`] = `
+[
+  0,
+]
+`;
+
+exports[`It should be able to handle zero integers with decimal places; 1`] = `"0.1"`;
+
+exports[`It should be able to prevent a leading zero value being part of the expression; 1`] = `"0"`;
+
+exports[`It should be able to prevent a leading zero value being part of the expression; 2`] = `"5"`;
+
+exports[`It should be able to remove the partial decimal when performing an operation; 1`] = `"1−"`;
+
+exports[`It should be to handle the FT to M conversions; 1`] = `"18.58"`;
+
+exports[`It should be to handle the FT to M conversions; 2`] = `"538.19"`;
+
+exports[`It should be to handle the PCW to PM conversions; 1`] = `"2500"`;
+
+exports[`It should be to handle the PCW to PM conversions; 2`] = `"577"`;
+
+exports[`It should be to handle the currency conversions; 1`] = `"117.46"`;
+
+exports[`It should be to handle the currency conversions; 2`] = `"85.13"`;
+
+exports[`It should be to handle the currency conversions; 3`] = `"109.7"`;
+
+exports[`It should be to handle the currency conversions; 4`] = `"91.16"`;
