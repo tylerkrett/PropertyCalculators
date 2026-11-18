@@ -144,7 +144,11 @@ import { createCalculator, CALCULATOR_LAYOUT } from 'property-calculators/calcul
 
 ## React components
 
-Four components, one import, no CSS file to load and nothing to configure.
+Thirteen components, one import, no CSS file to load and nothing to configure. The four below,
+plus `PropertyTaxCalculator`, `CompanyStampDutyCalculator`, `AffordabilityCalculator`,
+`OverpaymentCalculator`, `RemortgageCalculator`, `BuyingCostsCalculator`, `BuyToLetCalculator`,
+`PricePerAreaCalculator` and `TenantDepositCalculator`. Each takes `default*` props for its
+fields, `pdf` and `onChange`.
 
 ```tsx
 import {
@@ -674,6 +678,7 @@ calculateStampDuty({ price: 275_000, propertyType: 'non-residential' }).stampDut
 
 <p align="center"><img alt="A table comparing stamp duty at residential and non-residential rates from £150,000 to £2,000,000, and six flats bought together taxed at non-residential rates" src="assets/feature-non-residential.png" width="640"><br/><sub>The two tables side by side, and the six-dwellings rule</sub></p>
 
+Two to five dwellings bought in one transaction are charged the additional-property rates.
 Six or more dwellings bought in one transaction are taxed at these rates too. Pass `dwellings`
 and the switch happens for you; `estimate.propertyType` tells you which table was used.
 
@@ -713,7 +718,7 @@ getHigherRatesRefund({ price: 600_000 });
 // { paid: 50000, standard: 20000, refund: 30000, formatted: { refund: "£30,000", … } }
 
 getRefundDeadlines({ purchaseDate: '2025-06-10', saleDate: '2026-02-01' });
-// { sellBy: "2028-06-10", filingDate: "2025-06-24", claimBy: "2027-02-01", soldInTime: true }
+// { sellBy: "2028-06-10", filingDate: "2025-06-24", claimBy: "2027-01-31", soldInTime: true }
 ```
 
 <p align="center"><img alt="The four buyer questions with their answers, the explanation that higher rates apply but can be claimed back, the refund of £30,000, and the deadlines" src="assets/feature-main-residence.png" width="640"><br/><sub>The whole journey: questions from <code>BUYER_QUESTIONS</code>, the outcome from <code>resolveBuyer</code>, the refund and its dates</sub></p>
@@ -908,7 +913,8 @@ const { summary } = getRemortgageSummary({
 summary.formatted.monthlySaving;   // "£116.51"
 summary.formatted.switchingCost;   // "£1,999"
 summary.formatted.breakEvenMonths; // "1 year 1 month"
-summary.formatted.netSaving;       // "£1,978"  over the new deal's first 2 years
+summary.formatted.paymentSaving;   // "£797.24"   payments saved over 2 years, less the costs
+summary.formatted.netSaving;       // "£1,978.20" including the £1,180.96 less owed at the end
 ```
 
 Break-even counts the interest saved, not just the lower payment, so a fee added to the loan
@@ -953,7 +959,7 @@ const { summary } = getBuyToLetSummary({
 });
 
 summary.verdict;              // "Falls short"
-summary.formatted.coverRatio; // "139.64%"   145% required
+summary.formatted.coverRatio; // "139.63%"   145% required
 summary.formatted.maxLoan;    // "£180,564"  the most this rent supports
 summary.formatted.minRent;    // "£1,246.10" the rent this loan needs
 ```

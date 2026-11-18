@@ -90,3 +90,45 @@ describe('rentalYieldPdf', () => {
         await expect(rentalYieldPdf({ price: 0, rent: 1 })).rejects.toThrow(RangeError);
     });
 });
+
+describe('review regressions', () => {
+    const valid = { price: 200_000, rent: 1_000 };
+
+    it('works the yield out from the rent entered, not the rent rounded to the pound', () => {
+        // 12 × 1,157.69 = 13,892.28, which is 7.0151% of the price; £13,892 would be 7.0149%.
+        const result = calculateRentalYield({ price: 198_033.75, rent: 1_157.69 })!;
+        expect(result).toMatchObject({ annualRent: 13_892, grossYield: 7.02 });
+        const portfolio = getPortfolioYield([{ price: 198_033.75, rent: 1_157.69 }])!;
+        expect(portfolio).toMatchObject({ price: 198_034, annualRent: 13_892, grossYield: 7.02 });
+        expect(portfolio.netYield).toBe(result.netYield);
+    });
+
+    it('says what is wrong with the rent period', () => {
+        expect(getRentalYieldSummary({ ...valid, rentPeriod: 'day' as never })).toEqual({
+            summary: null,
+            error: 'Choose whether the rent is weekly, monthly or yearly.',
+        });
+    });
+
+    it('rejects amounts too large to calculate with, and a price under £1', () => {
+        expect(getRentalYieldSummary({ ...valid, rent: 1e308 }).error).toBe('Enter a lower rent.');
+        expect(rentalYieldInputError({ ...valid, annualCosts: 1e308 })).toBe('Enter lower yearly running costs.');
+        expect(rentalYieldInputError({ ...valid, purchaseCosts: 1e308 })).toBe('Enter lower purchase costs.');
+        expect(rentalYieldInputError({ ...valid, rent: 1_000_000_000, rentPeriod: 'week' })).toBeNull();
+        expect(rentalYieldInputError({ price: 0.5, rent: 100 })).toBe('Enter the property price.');
+        expect(Number.isFinite(calculateRentalYield({ price: 1, rent: 100 })!.netYield)).toBe(true);
+    });
+
+    it('returns an error for an unknown buyer type instead of throwing', () => {
+        expect(getRentalYieldSummary({ ...valid, buyer: 'x' as never })).toEqual({
+            summary: null,
+            error: 'Choose the type of buyer.',
+        });
+    });
+
+    it('skips portfolio entries that are not objects or cannot be calculated', () => {
+        const entries = [valid, null, 'flat', undefined, { ...valid, buyer: 'x' }, { ...valid, rentPeriod: 'day' }];
+        expect(getPortfolioYield(entries as never)).toMatchObject({ properties: 1, price: 200_000, grossYield: 6 });
+        expect(getPortfolioYield([null, { price: 0, rent: 1 }] as never)).toBeNull();
+    });
+});

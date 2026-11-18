@@ -207,3 +207,41 @@ describe('calculateIncomeNeeded', () => {
         expect(calculateIncomeNeeded({ ...target, incomeMultiple: 7 })).toBeNull();
     });
 });
+
+describe('review regressions', () => {
+    it('returns an error for an unknown buyer type instead of throwing', () => {
+        const input = { income: 60_000, deposit: 1, rate: 5, termYears: 25, buyer: 'x' as never };
+        expect(getAffordabilitySummary(input)).toEqual({ summary: null, error: 'Choose the type of buyer.' });
+        expect(calculateAffordability(input)).toBeNull();
+        expect(affordabilityInputError({ ...input, buyer: 'first-time-buyer' })).toBeNull();
+    });
+
+    it('stresses at the exact rate plus buffer, rounding it only for display', () => {
+        const { summary } = getAffordabilitySummary({ ...base, rate: 4.555 });
+        const at = (rate: number) =>
+            calculateMortgage({ price: 300_000, deposit: 30_000, rate, termYears: 25, type: 'repayment' })!;
+        expect(summary!.stressedRate).toBe(7.555);
+        expect(summary!.stressedPayment).toBe(at(7.555).monthlyPayment);
+        expect(summary!.stressedPayment).not.toBe(at(7.56).monthlyPayment);
+        expect(summary!.formatted.stressedRate).toBe('7.56%');
+        // Floating point alone gives 4.1 + 3.2 = 7.300000000000001.
+        expect(calculateAffordability({ ...base, rate: 4.1, stressBuffer: 3.2 })!.stressedRate).toBe(7.3);
+    });
+
+    it('needs enough income for a loan with pence in it, and no more', () => {
+        const targets = [
+            { price: 464_792, deposit: 316_304.95, monthlyCommitments: 1_046, incomeMultiple: 4.45 },
+            { price: 250_000, deposit: 24_999.01 },
+            { price: 310_500.5, deposit: 40_000.75, monthlyCommitments: 310.4, incomeMultiple: 3.7 },
+        ];
+        expect(calculateIncomeNeeded(targets[0]!)!.incomeNeeded).toBe(45_921);
+        for (const target of targets) {
+            const { loan, incomeNeeded } = calculateIncomeNeeded(target)!;
+            const forward = { ...target, rate: 5, termYears: 25 };
+            const enough = calculateAffordability({ ...forward, income: incomeNeeded })!;
+            expect(enough.maxLoan).toBeGreaterThanOrEqual(loan);
+            expect(enough.maxPrice).toBeGreaterThanOrEqual(target.price);
+            expect(calculateAffordability({ ...forward, income: incomeNeeded - 1 })!.maxLoan).toBeLessThan(loan);
+        }
+    });
+});

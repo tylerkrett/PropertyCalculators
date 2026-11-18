@@ -192,3 +192,51 @@ describe('getBuyToLetSummary', () => {
         });
     });
 });
+
+describe('the verdict at the boundary', () => {
+    const rowFor = (input: BuyToLetInput, key: string) =>
+        getBuyToLetSummary(input).summary!.rows.find((row) => row.key === key)!;
+
+    it('shows a fail as short of the cover and the rent, never level with them', () => {
+        // £1,374.9958 a month against £1,375: short by less than a penny.
+        const input: BuyToLetInput = { rent: 16_499.95, rentPeriod: 'year', loan: 240_000 };
+        const { summary } = getBuyToLetSummary(input);
+        expect(summary).toMatchObject({ passes: false, verdict: 'Falls short', coverRatio: 124.99 });
+        expect(summary).toMatchObject({ requiredCoverRatio: 125, monthlyHeadroom: -0.01 });
+        expect(summary!.formatted).toMatchObject({ coverRatio: '124.99%', monthlyHeadroom: '-£0.01' });
+        expect(rowFor(input, 'monthlyHeadroom')).toMatchObject({
+            label: BUY_TO_LET_SHORTFALL_LABEL,
+            value: 0.01,
+            formatted: '£0.01',
+        });
+    });
+
+    it('shows a pass with no shortfall and cover of at least the requirement', () => {
+        // The rent passes unrounded, though the minimum rent rounds up a penny past it.
+        const input: BuyToLetInput = { rent: 16_500.03, rentPeriod: 'year', loan: 240_000.17 };
+        const { summary } = getBuyToLetSummary(input);
+        expect(summary).toMatchObject({ passes: true, verdict: 'Passes', coverRatio: 125, monthlyHeadroom: 0 });
+        expect(Object.is(summary!.monthlyHeadroom, 0)).toBe(true);
+        expect(rowFor(input, 'monthlyHeadroom')).toMatchObject({
+            label: BUY_TO_LET_LABELS.monthlyHeadroom,
+            formatted: '£0.00',
+        });
+    });
+
+    it('never writes a minus zero, and rounds the cover down', () => {
+        for (const rent of [16_499.95, 16_499.99, 16_500, 16_500.03, 16_500.06]) {
+            const { summary } = getBuyToLetSummary({ rent, rentPeriod: 'year', loan: 240_000 });
+            const texts = [...Object.values(summary!.formatted), ...summary!.rows.map((row) => row.formatted)];
+            expect(texts.some((text) => text !== null && /^-£?0(\.00)?%?$/.test(text))).toBe(false);
+            expect(summary!.coverRatio >= summary!.requiredCoverRatio).toBe(summary!.passes);
+            expect(summary!.monthlyHeadroom >= 0).toBe(summary!.passes);
+        }
+        // 1,536 ÷ 1,100 is 139.6363…: shown as 139.63, not rounded up to 139.64.
+        expect(calculateBuyToLet({ ...base, rent: 1_536 })!.coverRatio).toBe(139.63);
+    });
+
+    it('rejects a rent too large to calculate with', () => {
+        expect(buyToLetInputError({ ...base, rent: 1e308 })).toBe('Enter a lower rent.');
+        expect(getBuyToLetSummary({ ...base, rent: 1_000_000_001 }).error).toBe('Enter a lower rent.');
+    });
+});

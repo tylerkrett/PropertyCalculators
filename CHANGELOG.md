@@ -15,6 +15,10 @@
 - **Price per square foot:** price or rent per sq ft and per sq m, with a comparison helper.
 - **Tenant deposit caps:** the Tenant Fees Act limits on tenancy deposits, holding deposits and
   rent in advance in England.
+- **React and PDF:** a component and a PDF report for each of the calculators above.
+- **Changed:** two to five dwellings bought together are charged the higher rates; six or more in
+  Wales use non-residential rates; the refund claim deadline is one day earlier; remortgage
+  results add `paymentSaving`, `balanceDifference` and `breakEvenWithinPeriod`.
 
 ## 1.2.0
 

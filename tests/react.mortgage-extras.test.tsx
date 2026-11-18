@@ -95,7 +95,9 @@ describe('RemortgageCalculator', () => {
 
     it('borrows the fee when asked, and says when a dearer deal never pays back', () => {
         expect(html(finished({ defaultFeePayment: 'add-to-loan' }))).toContain(row('New loan amount', '£200,999'));
-        expect(html(finished({ defaultNewRate: 6 }))).toContain(row('Time until interest saved covers the cost', 'Never'));
+        expect(html(finished({ defaultNewRate: 6 }))).toContain(
+            row('Time until interest saved covers the cost', 'Never'),
+        );
     });
 
     it('shows the form error instead of results', () => {

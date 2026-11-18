@@ -152,9 +152,8 @@ function checkCover(input: BuyToLetInput): BuyToLet {
     const loanSupported = (monthlyRent * 12 * 10_000) / (stressRate * requiredCoverRatio);
     const minRent = Math.ceil(rentNeeded * 100 - EPSILON) / 100;
     const passes = monthlyRent >= rentNeeded - EPSILON;
-    // The verdict is decided on unrounded figures; the rounded ones shown beside it must not
-    // contradict it at the boundary. A pass never shows a shortfall or cover below the requirement,
-    // and a fail always shows at least a penny short and cover at least 0.01 points under.
+    // The verdict is decided on unrounded figures, and the rounded ones shown beside it must agree: a
+    // pass never shows a shortfall or too little cover; a fail is at least 1p and 0.01 points short.
     const gap = twoDecimals(twoDecimals(monthlyRent) - minRent);
     const cover = Math.floor((monthlyRent / interest) * 10_000 + EPSILON) / 100;
 

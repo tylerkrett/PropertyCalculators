@@ -88,4 +88,13 @@ describe('getMortgageSummary', () => {
             error: 'Enter an interest rate between 0% and 25%.',
         });
     });
+
+    it('returns an error for an unknown buyer type instead of throwing', () => {
+        expect(getMortgageSummary({ ...base, buyer: 'x' as never })).toEqual({
+            summary: null,
+            error: 'Choose the type of buyer.',
+        });
+        // The mortgage itself does not depend on the buyer.
+        expect(mortgageInputError({ ...base, buyer: 'x' } as never)).toBeNull();
+    });
 });

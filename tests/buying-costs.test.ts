@@ -177,3 +177,40 @@ describe('getBuyingCostsSummary', () => {
         });
     });
 });
+
+describe('input that used to throw', () => {
+    const errorFor = (extra: object) => getBuyingCostsSummary({ ...base, ...extra } as never).error;
+
+    it('returns an error for an unknown buyer type', () => {
+        expect(getBuyingCostsSummary({ ...base, buyer: 'x' as never })).toEqual({
+            summary: null,
+            error: 'Choose the type of buyer.',
+        });
+        expect(calculateBuyingCosts({ ...base, buyer: 'x' as never })).toBeNull();
+    });
+
+    it('returns an error for other costs that are not a list of amounts', () => {
+        expect(errorFor({ extras: [null] })).toBe('Enter each other cost, or leave it at 0.');
+        expect(errorFor({ extras: ['5'] })).toBe('Enter each other cost, or leave it at 0.');
+        expect(errorFor({ extras: [{ label: 'Paint' }] })).toBe('Enter each other cost, or leave it at 0.');
+        expect(errorFor({ extras: [{ label: 'Paint', amount: '5' }] })).toBe(
+            'Enter each other cost, or leave it at 0.',
+        );
+        expect(errorFor({ extras: [{ label: 5, amount: 5 }] })).toBe('Enter each other cost, or leave it at 0.');
+        expect(errorFor({ extras: null })).toBe('Enter the other costs as a list.');
+        expect(errorFor({ extras: {} })).toBe('Enter the other costs as a list.');
+    });
+
+    it('calls a cost without a label "Other cost"', () => {
+        const { summary } = getBuyingCostsSummary({ ...base, extras: [{ amount: 5 }, { label: '  ', amount: 1 }] });
+        expect(summary!.items.slice(-2).map((item) => [item.label, item.value])).toEqual([
+            ['Other cost', 5],
+            ['Other cost', 1],
+        ]);
+    });
+
+    it('needs a price of at least £1', () => {
+        expect(buyingCostsInputError({ price: 0.5, deposit: 0 })).toBe('Enter the property price.');
+        expect(buyingCostsInputError({ price: 1, deposit: 0 })).toBeNull();
+    });
+});
