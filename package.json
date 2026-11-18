@@ -1,15 +1,18 @@
 {
     "name": "property-calculators",
-    "version": "1.1.0",
-    "description": "UK stamp duty (SDLT), mortgage and property desk-calculator logic. Headless core with no dependencies, plus optional ready-made React components.",
+    "version": "1.2.0",
+    "description": "UK stamp duty (SDLT), mortgage, rental yield and property desk-calculator logic, with branded PDF output. Headless core with no dependencies, plus optional ready-made React components.",
     "keywords": [
         "stamp duty",
         "sdlt",
         "mortgage",
+        "rental yield",
+        "buy to let",
         "calculator",
         "property",
         "uk",
         "headless",
+        "pdf",
         "react"
     ],
     "license": "MIT",
@@ -65,6 +68,26 @@
             "require": {
                 "types": "./dist/mortgage/index.d.cts",
                 "default": "./dist/mortgage/index.cjs"
+            }
+        },
+        "./rental-yield": {
+            "import": {
+                "types": "./dist/rental-yield/index.d.ts",
+                "default": "./dist/rental-yield/index.js"
+            },
+            "require": {
+                "types": "./dist/rental-yield/index.d.cts",
+                "default": "./dist/rental-yield/index.cjs"
+            }
+        },
+        "./pdf": {
+            "import": {
+                "types": "./dist/pdf/index.d.ts",
+                "default": "./dist/pdf/index.js"
+            },
+            "require": {
+                "types": "./dist/pdf/index.d.cts",
+                "default": "./dist/pdf/index.cjs"
             }
         },
         "./react": {

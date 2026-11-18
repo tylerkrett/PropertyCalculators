@@ -1,4 +1,6 @@
-import type { HTMLAttributes } from 'react';
+import { type HTMLAttributes, useState } from 'react';
+
+import type { PdfOptions } from '../pdf/index';
 
 import { STYLES } from './styles';
 
@@ -27,6 +29,7 @@ export type Slot =
     | 'rows'
     | 'row'
     | 'hint'
+    | 'download'
     | 'display'
     | 'pads'
     | 'pad'
@@ -53,6 +56,7 @@ const BASE: Record<Slot, string> = {
     rows: 'pc-rows',
     row: 'pc-row',
     hint: 'pc-hint',
+    download: 'pc-download',
     display: 'pc-display',
     pads: 'pc-pads',
     pad: 'pc-pad',
@@ -90,5 +94,50 @@ export function Styles({ unstyled, inlineStyles = true }: { unstyled?: boolean; 
         <style href="property-calculators" precedence="default">
             {STYLES}
         </style>
+    );
+}
+
+/**
+ * `true` for a plain PDF, or the brand to print it in: a name, a colour and a logo, plus the
+ * button's `label` and the saved file's `filename`.
+ */
+export type PdfProp = boolean | (PdfOptions & { label?: string; filename?: string });
+
+type PdfApi = typeof import('../pdf/index');
+
+/**
+ * The "Download PDF" button. The PDF code is fetched on the first click, so a page that never
+ * downloads one never loads it. A logo that fails to load is left out instead of blocking the file.
+ */
+export function PdfButton({
+    pdf,
+    filename,
+    className,
+    make,
+}: {
+    pdf: PdfProp | undefined;
+    filename: string;
+    className: string;
+    make: (api: PdfApi, options: PdfOptions) => Promise<Uint8Array>;
+}) {
+    const [busy, setBusy] = useState(false);
+    if (!pdf) return null;
+    const { label = 'Download PDF', filename: name = filename, ...options } = pdf === true ? {} : pdf;
+
+    const download = async () => {
+        setBusy(true);
+        try {
+            const api = await import('../pdf/index');
+            const bytes = await make(api, options).catch(() => make(api, { ...options, logo: undefined }));
+            api.downloadPdf(bytes, name);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <button type="button" className={className} disabled={busy} onClick={() => void download()}>
+            {label}
+        </button>
     );
 }

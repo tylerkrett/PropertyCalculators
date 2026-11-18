@@ -11,7 +11,7 @@ import {
 } from '../mortgage/index';
 import { BUYER_TYPES, type BuyerType, DEFAULT_BUYER_TYPE } from '../stamp-duty/estimate';
 import { formatNumber, parsePrice } from '../stamp-duty/format';
-import { type BaseProps, slots, Styles } from './shared';
+import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
 export type MortgageCalculatorProps = BaseProps & {
     /** Price to start with, in pounds. */
@@ -24,6 +24,8 @@ export type MortgageCalculatorProps = BaseProps & {
     defaultType?: RepaymentType;
     /** Buyer type for the stamp duty in "cash needed upfront". */
     defaultBuyer?: BuyerType;
+    /** Adds a "Download PDF" button: `true`, or your brand (`name`, `colour`, `logo`, `footer`...). */
+    pdf?: PdfProp;
     /** Called with the summary whenever it changes, or `null` while the form has an error. */
     onChange?: (summary: MortgageSummary | null) => void;
 };
@@ -37,6 +39,7 @@ export function MortgageCalculator({
     defaultTermYears = MORTGAGE_DEFAULTS.term,
     defaultType = MORTGAGE_DEFAULTS.type,
     defaultBuyer = DEFAULT_BUYER_TYPE,
+    pdf,
     onChange,
     className,
     classNames,
@@ -59,18 +62,18 @@ export function MortgageCalculator({
     const [type, setType] = useState<RepaymentType>(defaultType);
     const [buyer, setBuyer] = useState<BuyerType>(defaultBuyer);
 
-    const { summary, error } = useMemo(
-        () =>
-            getMortgageSummary({
-                price: amount(priceText),
-                deposit: amount(depositText),
-                rate: rate.trim() === '' ? Number.NaN : Number(rate),
-                termYears: Number(term),
-                type,
-                buyer,
-            }),
+    const input = useMemo(
+        () => ({
+            price: amount(priceText),
+            deposit: amount(depositText),
+            rate: rate.trim() === '' ? Number.NaN : Number(rate),
+            termYears: Number(term),
+            type,
+            buyer,
+        }),
         [priceText, depositText, rate, term, type, buyer],
     );
+    const { summary, error } = useMemo(() => getMortgageSummary(input), [input]);
 
     useEffect(() => {
         onChange?.(summary);
@@ -175,19 +178,27 @@ export function MortgageCalculator({
             </div>
 
             {summary ? (
-                <dl className={cx('rows')} aria-live="polite">
-                    {summary.rows.map((row, index) => (
-                        <div
-                            key={row.key}
-                            className={cx('row')}
-                            data-key={row.key}
-                            data-lead={index === 0 || undefined}
-                        >
-                            <dt>{row.label}</dt>
-                            <dd>{row.formatted}</dd>
-                        </div>
-                    ))}
-                </dl>
+                <>
+                    <dl className={cx('rows')} aria-live="polite">
+                        {summary.rows.map((row, index) => (
+                            <div
+                                key={row.key}
+                                className={cx('row')}
+                                data-key={row.key}
+                                data-lead={index === 0 || undefined}
+                            >
+                                <dt>{row.label}</dt>
+                                <dd>{row.formatted}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                    <PdfButton
+                        pdf={pdf}
+                        filename={`mortgage-${input.price}.pdf`}
+                        className={cx('download')}
+                        make={(api, options) => api.mortgagePdf(input, options)}
+                    />
+                </>
             ) : (
                 <p className={cx('hint')} role="status">
                     {error}

@@ -10,7 +10,7 @@ import {
 } from '../stamp-duty/estimate';
 import { formatNumber, parsePrice } from '../stamp-duty/format';
 import { getStampDutyTable, STAMP_DUTY_LABELS } from '../stamp-duty/labels';
-import { type BaseProps, slots, Styles } from './shared';
+import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
 export type StampDutyCalculatorProps = BaseProps & {
     /** Price to start with, in pounds. */
@@ -19,6 +19,8 @@ export type StampDutyCalculatorProps = BaseProps & {
     defaultNonUkResident?: boolean;
     /** Show the band-by-band table. Defaults to `true`. */
     showBreakdown?: boolean;
+    /** Adds a "Download PDF" button: `true`, or your brand (`name`, `colour`, `logo`, `footer`...). */
+    pdf?: PdfProp;
     /** Called with the estimate whenever it changes, or `null` when there is no valid price. */
     onChange?: (estimate: StampDutyEstimate | null) => void;
 };
@@ -28,6 +30,7 @@ export function StampDutyCalculator({
     defaultBuyer = DEFAULT_BUYER_TYPE,
     defaultNonUkResident = false,
     showBreakdown = true,
+    pdf,
     onChange,
     className,
     classNames,
@@ -156,6 +159,13 @@ export function StampDutyCalculator({
                             </tfoot>
                         </table>
                     )}
+
+                    <PdfButton
+                        pdf={pdf}
+                        filename={`stamp-duty-${estimate.price}.pdf`}
+                        className={cx('download')}
+                        make={(api, options) => api.stampDutyPdf(estimate, options)}
+                    />
                 </div>
             ) : (
                 <p className={cx('hint')} role="status">

@@ -2,9 +2,25 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { createCalculator, operation } from '../src/calculator/index';
-import { DeskCalculator, MortgageCalculator, StampDutyCalculator, STYLES } from '../src/react/index';
+import {
+    DeskCalculator,
+    MortgageCalculator,
+    RentalYieldCalculator,
+    StampDutyCalculator,
+    STYLES,
+} from '../src/react/index';
 
 const html = renderToStaticMarkup;
+
+describe('RentalYieldCalculator', () => {
+    it('renders the yields from its defaults, and asks for what is missing', () => {
+        const markup = html(<RentalYieldCalculator defaultPrice={400_000} defaultRent={2_000} pdf />);
+        expect(markup).toContain('<dt>Net yield</dt><dd>5.58%</dd>');
+        expect(markup).toContain('<dt>Gross yield</dt><dd>6%</dd>');
+        expect(markup).toContain('Download PDF</button>');
+        expect(html(<RentalYieldCalculator defaultPrice={400_000} />)).toContain('Enter the rent.');
+    });
+});
 
 describe('StampDutyCalculator', () => {
     it('renders a finished result from its defaults', () => {
@@ -14,6 +30,16 @@ describe('StampDutyCalculator', () => {
         expect(markup).toContain('3.67%');
         expect(markup).toContain('£250,001 – £925,000');
         expect(markup).toContain('How this result was calculated');
+    });
+
+    it('offers a PDF only when asked, labelled as the brand wants', () => {
+        expect(html(<StampDutyCalculator defaultPrice={750_000} />)).not.toContain('class="pc-download"');
+        expect(html(<StampDutyCalculator defaultPrice={750_000} pdf />)).toContain('Download PDF</button>');
+        expect(html(<StampDutyCalculator pdf />)).not.toContain('class="pc-download"');
+        const branded = html(
+            <MortgageCalculator defaultPrice={500_000} pdf={{ name: 'Acme', label: 'Save as PDF' }} />,
+        );
+        expect(branded).toContain('Save as PDF</button>');
     });
 
     it('honours buyer type, residency and the breakdown switch', () => {

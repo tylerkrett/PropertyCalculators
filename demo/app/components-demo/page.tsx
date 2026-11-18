@@ -1,6 +1,11 @@
 'use client';
 
-import { DeskCalculator, MortgageCalculator, StampDutyCalculator } from 'property-calculators/react';
+import {
+    DeskCalculator,
+    MortgageCalculator,
+    RentalYieldCalculator,
+    StampDutyCalculator,
+} from 'property-calculators/react';
 import { type CSSProperties, useState } from 'react';
 
 // Illustrative figures only. A real app fetches live rates.
@@ -26,6 +31,9 @@ const LOOKS = {
     },
     unstyled: { label: 'Unstyled', props: { unstyled: true } },
 };
+
+// The download button prints what is on screen, in this brand. Add `logo: '/logo.png'` for a logo.
+const BRAND = { name: 'Harlow & Finch', colour: '#b3261e', footer: 'harlowfinch.example · 020 7946 0000' };
 
 type Look = keyof typeof LOOKS;
 
@@ -53,12 +61,17 @@ export default function ComponentsDemo() {
 
             <section>
                 <h2>{'<StampDutyCalculator />'}</h2>
-                <StampDutyCalculator defaultPrice={750_000} {...props} />
+                <StampDutyCalculator defaultPrice={750_000} pdf={BRAND} {...props} />
             </section>
 
             <section>
                 <h2>{'<MortgageCalculator />'}</h2>
-                <MortgageCalculator defaultPrice={500_000} {...props} />
+                <MortgageCalculator defaultPrice={500_000} pdf={BRAND} {...props} />
+            </section>
+
+            <section>
+                <h2>{'<RentalYieldCalculator />'}</h2>
+                <RentalYieldCalculator defaultPrice={400_000} defaultRent={2_000} pdf={BRAND} {...props} />
             </section>
 
             <section>

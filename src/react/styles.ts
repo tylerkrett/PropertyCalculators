@@ -106,6 +106,9 @@ export const STYLES = `
 :where(.pc-styled) .pc-row[data-lead] dd { font-size: 28px; color: var(--pc-accent); }
 
 :where(.pc-styled) .pc-hint { margin: 0; color: var(--pc-muted); font-size: 14px; }
+:where(.pc-styled) .pc-download { justify-self: start; margin-top: var(--pc-gap); padding: 10px 16px; border: 1px solid var(--pc-accent); border-radius: var(--pc-radius); background: transparent; color: var(--pc-accent); font: 600 15px/1.2 var(--pc-font); cursor: pointer; }
+:where(.pc-styled) .pc-download:hover:not(:disabled) { background: var(--pc-soft); }
+:where(.pc-styled) .pc-download:disabled { opacity: 0.5; cursor: progress; }
 
 :where(.pc-styled) .pc-calculator { gap: 12px; max-width: 560px; }
 :where(.pc-styled) .pc-display {

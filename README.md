@@ -47,11 +47,13 @@ estimate.bands[2].formatted;      // { range: "£250,001 – £925,000", rate: "
 | --- | --- | --- |
 | **[Stamp duty](#stamp-duty)** | SDLT for home movers, first-time buyers, additional properties and non-UK residents, with the band-by-band breakdown. Also [new leases](#new-leases), [non-residential property](#non-residential-and-mixed-use) and [replacing a main home](#replacing-a-main-residence). | `property-calculators` |
 | **[Mortgage](#mortgage)** | Monthly payment, total interest, loan to value, and the cash you need upfront with stamp duty included. | `property-calculators/mortgage` |
+| **[Rental yield](#rental-yield)** | Gross and net yield on a buy-to-let, with stamp duty, empty weeks and running costs counted. One property or a portfolio. | `property-calculators/rental-yield` |
 | **[Desk calculator](#desk-calculator)** | A pocket calculator that also does VAT, rent per week ↔ per month, ft² ↔ m², and £ ↔ € or $. | `property-calculators/calculator` |
-| **[React components](#react-components)** | All three as drop-in components, styled by default and themeable. Optional. | `property-calculators/react` |
+| **[React components](#react-components)** | Each calculator as a drop-in component, styled by default and themeable. Optional. | `property-calculators/react` |
+| **[Branded PDFs](#branded-pdfs)** | Any result as a one-page PDF with your logo, colour and footer. No PDF library needed. | `property-calculators/pdf` |
 
 - **Headless core.** Works with React, Vue, Svelte, a server template, a CLI or a spreadsheet export.
-- **Zero dependencies.** About 11 kB gzipped for all three calculators, less if you import one. React is only needed if you use the components.
+- **Zero dependencies.** About 11 kB gzipped for the calculators, less if you import one; PDFs are a separate 7 kB that loads only when used. React is only needed if you use the components.
 - **Runs anywhere.** Node 18+, browsers, edge runtimes, React Native. ESM and CommonJS, fully typed.
 - **Plain JSON out.** Stamp duty and mortgage results cross an API or a server-to-client boundary untouched.
 - **Deterministic.** No `Intl`, no locale lookups: the server and the browser always print the same string.
@@ -109,10 +111,12 @@ import { createCalculator, CALCULATOR_LAYOUT } from 'property-calculators/calcul
 
 | Entry point | Contains |
 | --- | --- |
-| `property-calculators` | Stamp duty and mortgage, plus the desk calculator under the `calculator` namespace |
+| `property-calculators` | Stamp duty, mortgage and rental yield, plus the desk calculator under the `calculator` namespace |
 | `property-calculators/stamp-duty` | Stamp duty only |
 | `property-calculators/mortgage` | Mortgage only |
+| `property-calculators/rental-yield` | Rental yield only |
 | `property-calculators/calculator` | Desk calculator only |
+| `property-calculators/pdf` | Branded PDF output for every calculator |
 | `property-calculators/react` | Ready-made React components (needs React 18 or later) |
 | `property-calculators/styles.css` | The components' default stylesheet, for when you'd rather load it yourself |
 
@@ -202,14 +206,17 @@ need `!important` to override one.
 
 ### Props
 
-All three accept `className`, `classNames`, `theme`, `unstyled`, `inlineStyles`, and any ordinary
+All of them accept `className`, `classNames`, `theme`, `unstyled`, `inlineStyles`, and any ordinary
 `div` attribute (`id`, `style`, `data-*`), which lands on the root element.
 
 | Component | Props |
 | --- | --- |
-| `StampDutyCalculator` | `defaultPrice`, `defaultBuyer`, `defaultNonUkResident`, `showBreakdown` (default `true`), `onChange(estimate \| null)` |
-| `MortgageCalculator` | `defaultPrice`, `defaultDeposit` (default 25% of the price), `defaultRate`, `defaultTermYears`, `defaultType`, `defaultBuyer`, `onChange(summary \| null)` |
+| `StampDutyCalculator` | `defaultPrice`, `defaultBuyer`, `defaultNonUkResident`, `showBreakdown` (default `true`), `pdf`, `onChange(estimate \| null)` |
+| `MortgageCalculator` | `defaultPrice`, `defaultDeposit` (default 25% of the price), `defaultRate`, `defaultTermYears`, `defaultType`, `defaultBuyer`, `pdf`, `onChange(summary \| null)` |
+| `RentalYieldCalculator` | `defaultPrice`, `defaultRent`, `defaultRentPeriod` (default `"month"`), `defaultAnnualCosts`, `defaultPurchaseCosts`, `defaultVoidWeeks`, `defaultBuyer` (default `"additional-property"`), `pdf`, `onChange(summary \| null)` |
 | `DeskCalculator` | `rates`, `keyboard` (default `true`), `conversions` (default `true`), `calculator` (your own store from `createCalculator()`) |
+
+`pdf` adds a download button: `true` for a plain page, or [your brand](#branded-pdfs).
 
 `onChange` hands you the same objects the headless functions return, so you can react to a result
 elsewhere on the page:
@@ -225,6 +232,138 @@ elsewhere on the page:
 
 When the components don't bend far enough, drop down a level: everything below is what they are
 built from.
+
+---
+
+## Branded PDFs
+
+Every calculator can hand its answer over as a PDF in your colours, with your logo on it. It is
+the same page whichever calculator made it, so a stamp duty estimate, a mortgage and a rental
+yield from your site all look like they came from the same company.
+
+<table>
+<tr>
+<td width="33%" valign="top"><img alt="A stamp duty estimate as a PDF with an estate agent's logo, a red accent colour, the property's address and a footer" src="assets/pdf-branded.png"><br/><sub><b>Yours</b>: logo, colour, address, footer</sub></td>
+<td width="33%" valign="top"><img alt="A rental yield estimate as a PDF in the same brand" src="assets/pdf-rental-yield.png"><br/><sub><b>Same brand</b>, another calculator</sub></td>
+<td width="33%" valign="top"><img alt="The same stamp duty estimate as a PDF with no branding" src="assets/pdf-plain.png"><br/><sub><b>Plain</b>: no options at all</sub></td>
+</tr>
+</table>
+
+### With the React components
+
+Add `pdf` and a "Download PDF" button appears under the result. It prints what the visitor is
+looking at: the price they typed, the buyer type they chose, the figures on screen.
+
+```tsx
+import { MortgageCalculator, RentalYieldCalculator, StampDutyCalculator } from 'property-calculators/react';
+
+const brand = {
+    name: 'Harlow & Finch',                 // header when there's no logo, and the document's author
+    colour: '#b3261e',                      // the rule under the header and the headline figure
+    logo: '/logo.png',                      // a JPEG or PNG; transparency is kept
+    footer: 'harlowfinch.example · 020 7946 0000',
+};
+
+<StampDutyCalculator defaultPrice={750_000} pdf={brand} />
+<MortgageCalculator defaultPrice={500_000} pdf={brand} />
+<RentalYieldCalculator defaultPrice={400_000} defaultRent={2_000} pdf={brand} />
+
+<StampDutyCalculator pdf />                 // plain, unbranded
+```
+
+The brand object also takes `label` (the button's text), `filename`, `subtitle` (a line under the
+title, such as the property's address), `notice` (your own small print, or `false` for none) and
+`date` (`false` to leave it off).
+
+### Without React
+
+One function per calculator. Each takes the result you already have and returns the file's bytes.
+
+```ts
+import { calculateStampDuty } from 'property-calculators';
+import { downloadPdf, mortgagePdf, rentalYieldPdf, stampDutyPdf } from 'property-calculators/pdf';
+
+const estimate = calculateStampDuty({ price: 1_250_000, buyer: 'additional-property' });
+
+const pdf = await stampDutyPdf(estimate, {
+    name: 'Harlow & Finch',
+    colour: '#b3261e',
+    logo: '/logo.png',
+    subtitle: '14 Elgin Avenue, London W9',
+    footer: 'harlowfinch.example · 020 7946 0000',
+});
+
+downloadPdf(pdf, 'stamp-duty.pdf');        // in a browser: saves the file
+```
+
+On a server, send the same bytes. Nothing here needs a browser:
+
+```ts
+// app/api/stamp-duty/[price]/pdf/route.ts
+export async function GET(_: Request, { params }: { params: Promise<{ price: string }> }) {
+    const estimate = calculateStampDuty({ price: Number((await params).price) });
+    const pdf = await stampDutyPdf(estimate, { name: 'Harlow & Finch', colour: '#b3261e' });
+
+    return new Response(pdf, { headers: { 'content-type': 'application/pdf' } });
+}
+```
+
+`logo` can be a URL (a `data:` URL included), a `File` or `Blob` from an upload field, or raw
+bytes. To let a customer attach their own, pass the file straight through:
+
+```tsx
+<input type="file" accept="image/png,image/jpeg" onChange={(e) => setLogo(e.target.files?.[0])} />
+<StampDutyCalculator pdf={{ name, colour, logo }} />
+```
+
+Printing many documents with one logo? Prepare it once with `pdfImage` and reuse the result:
+
+```ts
+const logo = await pdfImage('/logo.png');
+const files = await Promise.all(estimates.map((estimate) => stampDutyPdf(estimate, { logo })));
+```
+
+### A calculator of your own
+
+The page layout is not tied to these calculators. Describe any result as a headline, some facts
+and optional tables, and `createPdf` prints it in the same brand:
+
+```ts
+import { createPdf } from 'property-calculators/pdf';
+
+const pdf = await createPdf(
+    {
+        title: 'Service charge estimate',
+        headline: { label: 'Per year', value: '£4,820' },
+        facts: [
+            { label: 'Flat', value: '2 bedrooms, 3rd floor' },
+            { label: 'Ground rent', value: '£250' },
+        ],
+        tables: [{ title: 'Breakdown', columns: ['Item', 'Cost'], rows: [['Lift', '£900'], ['Insurance', '£1,200']] }],
+    },
+    brand,
+);
+```
+
+`stampDutyReport`, `mortgageReport`, `rentalYieldReport` and `leaseStampDutyReport` give you the
+built-in reports as that same data, if you want to add a row before printing.
+
+### How it works
+
+A PDF is a text file: numbered objects, then an index saying where each one starts. This library
+writes that file by hand, which is why the feature adds no dependency.
+
+- **No font is embedded.** Every PDF reader ships with Helvetica, so the file only names it. Text
+  is measured with Helvetica's published widths, which is how figures line up on the right.
+- **A JPEG logo goes in untouched.** PDF stores JPEG natively.
+- **A PNG logo is unpacked** into colour and transparency using the `DecompressionStream` built
+  into browsers and Node 18+. That is the only reason the functions are `async`.
+- **It is small and loads late.** About 7 kB gzipped, in its own entry point. The React components
+  fetch it on the first click of the button, so a visitor who never downloads a PDF never pays for it.
+- **The files are small.** A plain estimate is about 4 kB; a logo adds roughly its own size.
+
+Limits worth knowing: one A4 page, Western European characters (anything else prints as `?`),
+and logos must be JPEG or 8-bit non-interlaced PNG, which is what design tools export by default.
 
 ---
 
@@ -569,6 +708,54 @@ for a pounds-or-percent deposit field, and `calculateMortgage` if you only want 
 
 ---
 
+## Rental yield
+
+For a buy-to-let: what the rent returns on what the property really costs.
+
+```ts
+import { getRentalYieldSummary } from 'property-calculators/rental-yield';
+
+const { summary, error } = getRentalYieldSummary({
+    price: 400_000,
+    rent: 2_000,
+    rentPeriod: 'month',        // or 'week' | 'year'
+    voidWeeks: 2,               // weeks a year it stands empty
+    annualCosts: 4_000,         // letting fees, insurance, repairs, service charge
+    purchaseCosts: 3_000,       // legal fees, survey, refurbishment
+});
+
+summary.formatted.grossYield;   // "6%"       a full year's rent ÷ the price
+summary.formatted.netYield;     // "4.41%"    rent after voids and costs ÷ everything you paid
+summary.formatted.stampDuty;    // "£30,000"  worked out for you
+summary.rows;                   // every figure as { key, label, value, formatted }, net yield first
+```
+
+Two things it does that a back-of-envelope sum usually misses:
+
+- **Stamp duty is in the cost.** It is charged at additional-property rates unless you say
+  otherwise (`buyer`, `nonUkResident`), because a landlord nearly always pays the surcharge. On
+  the £400,000 flat above that is £30,000, and it takes most of a point off the yield.
+- **Gross and net are kept apart.** Gross yield is the figure agents quote, so it ignores empty
+  weeks and costs. Net yield is rent actually received, less running costs, over the price plus
+  stamp duty plus the other costs of buying.
+
+A whole portfolio is one more call. Rents and costs are added up before dividing, so a large
+property counts for more than a small one:
+
+```ts
+import { getPortfolioYield } from 'property-calculators/rental-yield';
+
+getPortfolioYield([
+    { price: 400_000, rent: 2_000 },
+    { price: 250_000, rent: 1_450 },
+])?.formatted;                  // { grossYield: "6.37%", netYield: "5.96%", annualRent: "£41,400", ... }
+```
+
+`rentalYieldInputError` gives the reason an input can't be calculated, `calculateRentalYield` the
+maths alone, and `RENT_PERIODS` the options for a select.
+
+---
+
 ## Desk calculator
 
 A pocket calculator with the conversions property people reach for all day:
@@ -811,15 +998,50 @@ Types: `MortgageInput`, `MortgageSummaryInput`, `MortgageResult`, `MortgageSumma
 </details>
 
 <details>
+<summary><b>Rental yield</b></summary>
+
+| Export | Description |
+| --- | --- |
+| `getRentalYieldSummary(input)` | `{ summary, error }` with both yields, stamp duty, total cost, display strings and rows. |
+| `calculateRentalYield(input)` | The maths alone; `null` for invalid input. |
+| `getPortfolioYield(inputs)` | Totals and yields across several properties; `null` if none can be calculated. |
+| `rentalYieldInputError(input)` | The reason an input can't be calculated, or `null`. |
+| `RENT_PERIODS`, `RENTAL_YIELD_DEFAULTS`, `RENTAL_YIELD_LABELS` | Options, defaults and labels. |
+
+Types: `RentalYieldInput`, `RentalYield`, `RentalYieldSummary`, `PortfolioYield`, `RentPeriod`.
+
+</details>
+
+<details>
+<summary><b>PDF</b></summary>
+
+| Export | Description |
+| --- | --- |
+| `stampDutyPdf(estimate, options?)` | A stamp duty estimate as PDF bytes. |
+| `mortgagePdf(input, options?)`, `rentalYieldPdf(input, options?)` | The same for a mortgage or a rental yield. Reject with a `RangeError` when the input can't be calculated. |
+| `leaseStampDutyPdf(lease, options?)` | A new-lease calculation, with both breakdowns and its notes. |
+| `createPdf(report, options?)` | Any report of your own in the same layout and brand. |
+| `stampDutyReport`, `mortgageReport`, `rentalYieldReport`, `leaseStampDutyReport` | The built-in reports as data, to adjust before printing. |
+| `pdfImage(source)` | Prepares a JPEG or PNG logo once, for reuse across documents. |
+| `downloadPdf(bytes, filename?)` | Saves the bytes as a file in a browser. |
+| `renderPdf(report, brand)` | The synchronous core, for a logo already prepared. |
+| `DEFAULT_NOTICE`, `formatPdfDate` | The default small print, and the date format used. |
+
+Options: `name`, `colour`, `logo`, `footer`, `subtitle`, `notice`, `date`.
+Types: `PdfOptions`, `PdfBrand`, `PdfReport`, `PdfTable`, `PdfImage`, `PdfImageSource`.
+
+</details>
+
+<details>
 <summary><b>React components</b></summary>
 
 | Export | Description |
 | --- | --- |
-| `StampDutyCalculator`, `MortgageCalculator`, `DeskCalculator` | The components. See [props](#props). |
+| `StampDutyCalculator`, `MortgageCalculator`, `RentalYieldCalculator`, `DeskCalculator` | The components. See [props](#props). |
 | `STYLES` | The default stylesheet as a string, the same content as `property-calculators/styles.css`. |
 
-Types: `StampDutyCalculatorProps`, `MortgageCalculatorProps`, `DeskCalculatorProps`, `BaseProps`,
-`ClassNames`, `Slot`.
+Types: `StampDutyCalculatorProps`, `MortgageCalculatorProps`, `RentalYieldCalculatorProps`,
+`DeskCalculatorProps`, `BaseProps`, `ClassNames`, `PdfProp`, `Slot`.
 
 </details>
 
