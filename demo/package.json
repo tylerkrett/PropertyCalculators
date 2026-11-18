@@ -9,7 +9,7 @@
     },
     "dependencies": {
         "next": "^16.4.6",
-        "property-calculators": "file:..",
+        "property-calculators": "workspace:*",
         "react": "^19.0.0",
         "react-dom": "^19.0.0"
     },

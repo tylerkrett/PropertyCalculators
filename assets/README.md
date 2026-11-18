@@ -27,5 +27,5 @@ To use the icons on a website, copy them into its public root and add:
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
 ```
 
-The demo screenshots come from running `npm run demo` and capturing each section in light and
+The demo screenshots come from running `pnpm demo` and capturing each section in light and
 dark mode. Retake them when the demo's look changes.

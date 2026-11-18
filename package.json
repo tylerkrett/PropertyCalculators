@@ -85,11 +85,12 @@
         "prepare": "tsup",
         "test": "vitest run",
         "type-check": "tsc --noEmit",
-        "prepublishOnly": "npm run lint && npm run type-check && npm test",
-        "demo": "npm run build && npm --prefix demo install && npm --prefix demo run dev",
+        "prepublishOnly": "pnpm run lint && pnpm run type-check && pnpm test",
+        "demo": "pnpm run build && pnpm --filter property-calculators-demo dev",
         "build:watch": "tsup --watch",
         "format": "prettier --write .",
-        "lint": "prettier --check . && node scripts/check-file-length.mjs"
+        "lint": "prettier --check . && node scripts/check-file-length.mjs",
+        "release": "pnpm publish --access public"
     },
     "peerDependencies": {
         "react": ">=18"
@@ -119,5 +120,6 @@
     "homepage": "https://github.com/tylerkrett/PropertyCalculators#readme",
     "bugs": {
         "url": "https://github.com/tylerkrett/PropertyCalculators/issues"
-    }
+    },
+    "packageManager": "pnpm@11.18.0"
 }

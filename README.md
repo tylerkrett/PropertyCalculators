@@ -67,8 +67,8 @@ The repo includes a small Next.js app with two pages: the ready-made components 
 switcher, and the same calculators hand-built from the library's data.
 
 ```sh
-npm install
-npm run demo        # http://localhost:3000
+pnpm install
+pnpm demo          # http://localhost:3000
 ```
 
 <table>
@@ -754,7 +754,7 @@ Tax software has to be boring. This is what stands behind the numbers:
 - **Input from the outside world is checked.** Invalid prices and malformed hashes fail with a
   clear error, not a wrong answer.
 
-Run the suite yourself with `npm test`.
+Run the suite yourself with `pnpm test`.
 
 ## API reference
 
@@ -868,13 +868,14 @@ address you pass to the PDF model comes back unchanged, so escape it as you woul
 ## Contributing
 
 ```sh
-npm install
-npm test            # vitest
-npm run type-check
-npm run lint        # formatting, and no file over 250 lines
-npm run format      # fix formatting
-npm run build       # ESM, CommonJS and type declarations into dist/
-npm run demo        # the Next.js demo; add `npm run build:watch` in another terminal for live edits
+pnpm install
+pnpm test         # vitest
+pnpm type-check
+pnpm lint         # formatting, and no file over 250 lines
+pnpm format       # fix formatting
+pnpm build        # ESM, CommonJS and type declarations into dist/
+pnpm demo         # the Next.js demo; add `pnpm build:watch` in another terminal for live edits
+pnpm release      # checks, builds and publishes to npm (asks for your one-time code)
 ```
 
 **Changing the rates.** Update the tables in `src/stamp-duty/bands/`, set
