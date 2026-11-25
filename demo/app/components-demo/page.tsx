@@ -4,15 +4,20 @@ import {
     AffordabilityCalculator,
     BuyingCostsCalculator,
     BuyToLetCalculator,
+    CapitalGainsCalculator,
     CompanyStampDutyCalculator,
     DeskCalculator,
+    LandlordIncomeCalculator,
     MortgageCalculator,
     OverpaymentCalculator,
     PricePerAreaCalculator,
     PropertyTaxCalculator,
     RemortgageCalculator,
+    RentConverterCalculator,
     RentalYieldCalculator,
+    SellingCostsCalculator,
     StampDutyCalculator,
+    TenantAffordabilityCalculator,
     TenantDepositCalculator,
 } from 'property-calculators/react';
 import { type CSSProperties, useState } from 'react';
@@ -163,6 +168,63 @@ export default function ComponentsDemo() {
             <section>
                 <h2>{'<TenantDepositCalculator />'}</h2>
                 <TenantDepositCalculator defaultRent={1_200} defaultProposedDeposit={1_500} pdf={BRAND} {...props} />
+            </section>
+
+            <section>
+                <h2>{'<SellingCostsCalculator />'}</h2>
+                <SellingCostsCalculator
+                    defaultPrice={350_000}
+                    defaultMortgage={180_000}
+                    defaultAgentFeePercent={1.25}
+                    defaultFees={{ legalFees: 1_500 }}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<CapitalGainsCalculator />'}</h2>
+                <CapitalGainsCalculator
+                    defaultSalePrice={300_000}
+                    defaultPurchasePrice={180_000}
+                    defaultIncome={40_000}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<RentConverterCalculator />'}</h2>
+                <RentConverterCalculator
+                    defaultRent={650}
+                    defaultPeriod="week"
+                    defaultTenants={2}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<TenantAffordabilityCalculator />'}</h2>
+                <TenantAffordabilityCalculator
+                    defaultRent={1_500}
+                    defaultIncome={42_000}
+                    defaultTenants={2}
+                    pdf={BRAND}
+                    {...props}
+                />
+            </section>
+
+            <section>
+                <h2>{'<LandlordIncomeCalculator />'}</h2>
+                <LandlordIncomeCalculator
+                    defaultRent={1_200}
+                    defaultManagementFeePercent={10}
+                    defaultMortgageInterest={6_000}
+                    defaultOtherIncome={30_000}
+                    pdf={BRAND}
+                    {...props}
+                />
             </section>
 
             <section>

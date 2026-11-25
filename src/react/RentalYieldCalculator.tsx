@@ -8,7 +8,17 @@ import {
     type RentPeriod,
 } from '../rental-yield/index';
 import { BUYER_TYPES, type BuyerType } from '../stamp-duty/estimate';
-import { formatNumber, parsePrice } from '../stamp-duty/format';
+import {
+    amountText,
+    MoneyField,
+    NumberField,
+    oneOf,
+    parseAmount,
+    parseNumber,
+    ResultRows,
+    SelectField,
+    Status,
+} from './fields';
 import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
 export type RentalYieldCalculatorProps = BaseProps & {
@@ -16,13 +26,14 @@ export type RentalYieldCalculatorProps = BaseProps & {
     defaultPrice?: number;
     /** Rent to start with, in pounds per `defaultRentPeriod`. */
     defaultRent?: number;
+    /** Defaults to `"month"`; a value that is not a rent period falls back to it. */
     defaultRentPeriod?: RentPeriod;
     /** Running costs per year, in pounds. */
     defaultAnnualCosts?: number;
     /** Costs of buying other than stamp duty, in pounds. */
     defaultPurchaseCosts?: number;
     defaultVoidWeeks?: number;
-    /** Buyer type for the stamp duty. Defaults to `"additional-property"`. */
+    /** Buyer type for the stamp duty. Defaults to `"additional-property"`, as does an unknown value. */
     defaultBuyer?: BuyerType;
     /** Adds a "Download PDF" button: `true`, or your brand (`name`, `colour`, `logo`, `footer`...). */
     pdf?: PdfProp;
@@ -30,10 +41,7 @@ export type RentalYieldCalculatorProps = BaseProps & {
     onChange?: (summary: RentalYieldSummary | null) => void;
 };
 
-const text = (value: number | undefined) => (value ? formatNumber(value) : '');
-/** An empty box counts as zero for the optional costs, and as missing for the price and rent. */
-const amount = (value: string, empty: number) => (value.trim() === '' ? empty : parsePrice(value));
-
+/** Gross and net rental yield on a purchase, after stamp duty, running costs and empty weeks. */
 export function RentalYieldCalculator({
     defaultPrice,
     defaultRent,
@@ -52,26 +60,28 @@ export function RentalYieldCalculator({
     ...rest
 }: RentalYieldCalculatorProps) {
     const id = useId();
+    const statusId = `${id}status`;
     const cx = slots(classNames, !unstyled && 'pc-styled', 'pc-rental-yield', className);
-    const [priceText, setPriceText] = useState(text(defaultPrice));
-    const [rentText, setRentText] = useState(text(defaultRent));
-    const [rentPeriod, setRentPeriod] = useState<RentPeriod>(defaultRentPeriod);
-    const [costsText, setCostsText] = useState(text(defaultAnnualCosts));
-    const [purchaseText, setPurchaseText] = useState(text(defaultPurchaseCosts));
-    const [voidWeeks, setVoidWeeks] = useState(String(defaultVoidWeeks));
-    const [buyer, setBuyer] = useState<BuyerType>(defaultBuyer);
+    const [priceText, setPriceText] = useState(amountText(defaultPrice));
+    const [rentText, setRentText] = useState(amountText(defaultRent));
+    const [rentPeriod, setRentPeriod] = useState<RentPeriod>(() =>
+        oneOf(RENT_PERIODS, defaultRentPeriod, RENTAL_YIELD_DEFAULTS.rentPeriod),
+    );
+    const [costsText, setCostsText] = useState(amountText(defaultAnnualCosts));
+    const [purchaseText, setPurchaseText] = useState(amountText(defaultPurchaseCosts));
+    const [voidText, setVoidText] = useState(String(defaultVoidWeeks));
+    const [buyer, setBuyer] = useState<BuyerType>(() => oneOf(BUYER_TYPES, defaultBuyer, RENTAL_YIELD_DEFAULTS.buyer));
 
+    // Memoised on the numbers, not the text, so retyping 500000 as 500,000 reports nothing new.
+    // An empty box counts as zero for the optional costs, and as missing for the price and rent.
+    const price = parseAmount(priceText, Number.NaN);
+    const rent = parseAmount(rentText, Number.NaN);
+    const annualCosts = parseAmount(costsText, 0);
+    const purchaseCosts = parseAmount(purchaseText, 0);
+    const voidWeeks = parseNumber(voidText, 0);
     const input = useMemo(
-        () => ({
-            price: amount(priceText, Number.NaN),
-            rent: amount(rentText, Number.NaN),
-            rentPeriod,
-            annualCosts: amount(costsText, 0),
-            purchaseCosts: amount(purchaseText, 0),
-            voidWeeks: voidWeeks.trim() === '' ? 0 : Number(voidWeeks),
-            buyer,
-        }),
-        [priceText, rentText, rentPeriod, costsText, purchaseText, voidWeeks, buyer],
+        () => ({ price, rent, rentPeriod, annualCosts, purchaseCosts, voidWeeks, buyer }),
+        [price, rent, rentPeriod, annualCosts, purchaseCosts, voidWeeks, buyer],
     );
     const { summary, error } = useMemo(() => getRentalYieldSummary(input), [input]);
 
@@ -80,105 +90,72 @@ export function RentalYieldCalculator({
         // Report results, not new callback identities.
     }, [summary]);
 
-    const money = (key: string, label: string, value: string, set: (value: string) => void) => (
-        <div className={cx('field')}>
-            <label className={cx('label')} htmlFor={`${id}${key}`}>
-                {label}
-            </label>
-            <div className={cx('money')}>
-                <span className={cx('prefix')} aria-hidden="true">
-                    £
-                </span>
-                <input
-                    id={`${id}${key}`}
-                    className={cx('input')}
-                    inputMode="decimal"
-                    autoComplete="off"
-                    value={value}
-                    onChange={(event) => set(event.target.value)}
-                />
-            </div>
-        </div>
-    );
-    const select = <T extends string>(
-        key: string,
-        label: string,
-        value: T,
-        set: (value: T) => void,
-        options: readonly { value: T; label: string }[],
-    ) => (
-        <div className={cx('field')}>
-            <label className={cx('label')} htmlFor={`${id}${key}`}>
-                {label}
-            </label>
-            <select
-                id={`${id}${key}`}
-                className={cx('select')}
-                value={value}
-                onChange={(event) => set(event.target.value as T)}
-            >
-                {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                        {option.label}
-                    </option>
-                ))}
-            </select>
-        </div>
-    );
-
     return (
         <div {...rest} data-theme={theme} className={cx('root')}>
             <Styles unstyled={unstyled} inlineStyles={inlineStyles} />
 
-            <div className={cx('form')} data-layout="grid">
-                {money('price', 'Property price', priceText, setPriceText)}
-                {money('rent', 'Rent', rentText, setRentText)}
-                {select('period', 'Rent is paid', rentPeriod, setRentPeriod, RENT_PERIODS)}
-                {money('costs', 'Running costs per year', costsText, setCostsText)}
-                {money('purchase', 'Other purchase costs', purchaseText, setPurchaseText)}
-                <div className={cx('field')}>
-                    <label className={cx('label')} htmlFor={`${id}void`}>
-                        Empty weeks per year
-                    </label>
-                    <input
-                        id={`${id}void`}
-                        className={cx('input')}
-                        type="number"
-                        min={0}
-                        max={52}
-                        value={voidWeeks}
-                        onChange={(event) => setVoidWeeks(event.target.value)}
-                    />
-                </div>
-                {select('buyer', 'Buyer (for stamp duty)', buyer, setBuyer, BUYER_TYPES)}
+            <div className={cx('form')} data-layout="grid" aria-describedby={error ? statusId : undefined}>
+                <MoneyField
+                    cx={cx}
+                    id={`${id}price`}
+                    label="Property price"
+                    value={priceText}
+                    onChange={setPriceText}
+                />
+                <MoneyField cx={cx} id={`${id}rent`} label="Rent" value={rentText} onChange={setRentText} />
+                <SelectField
+                    cx={cx}
+                    id={`${id}period`}
+                    label="Rent is paid"
+                    value={rentPeriod}
+                    onChange={setRentPeriod}
+                    options={RENT_PERIODS}
+                />
+                <MoneyField
+                    cx={cx}
+                    id={`${id}costs`}
+                    label="Running costs per year"
+                    value={costsText}
+                    onChange={setCostsText}
+                />
+                <MoneyField
+                    cx={cx}
+                    id={`${id}purchase`}
+                    label="Other purchase costs"
+                    value={purchaseText}
+                    onChange={setPurchaseText}
+                />
+                <NumberField
+                    cx={cx}
+                    id={`${id}void`}
+                    label="Empty weeks per year"
+                    min={0}
+                    max={52}
+                    value={voidText}
+                    onChange={setVoidText}
+                />
+                <SelectField
+                    cx={cx}
+                    id={`${id}buyer`}
+                    label="Buyer (for stamp duty)"
+                    value={buyer}
+                    onChange={setBuyer}
+                    options={BUYER_TYPES}
+                />
             </div>
 
-            {summary ? (
+            <Status cx={cx} id={statusId} error={error} headline={summary?.rows[0]} />
+
+            {summary && (
                 <>
-                    <dl className={cx('rows')} aria-live="polite">
-                        {summary.rows.map((row, index) => (
-                            <div
-                                key={row.key}
-                                className={cx('row')}
-                                data-key={row.key}
-                                data-lead={index === 0 || undefined}
-                            >
-                                <dt>{row.label}</dt>
-                                <dd>{row.formatted}</dd>
-                            </div>
-                        ))}
-                    </dl>
+                    <ResultRows cx={cx} rows={summary.rows} />
                     <PdfButton
                         pdf={pdf}
                         filename={`rental-yield-${input.price}.pdf`}
-                        className={cx('download')}
+                        cx={cx}
                         make={(api, options) => api.rentalYieldPdf(input, options)}
                     />
                 </>
-            ) : (
-                <p className={cx('hint')} role="status">
-                    {error}
-                </p>
             )}
         </div>
     );

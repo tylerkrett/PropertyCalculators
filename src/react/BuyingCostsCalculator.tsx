@@ -9,7 +9,7 @@ import {
     getBuyingCostsSummary,
 } from '../buying-costs/index';
 import { BUYER_TYPES, type BuyerType } from '../stamp-duty/estimate';
-import { amountText, Hints, MoneyField, parseAmount, ResultRows, SelectField } from './fields';
+import { amountText, MoneyField, oneOf, parseAmount, ResultRows, SelectField, Status } from './fields';
 import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
 type Fees<T> = Partial<Record<BuyingCostFeeKey, T>>;
@@ -58,21 +58,22 @@ export function BuyingCostsCalculator({
     ...rest
 }: BuyingCostsCalculatorProps) {
     const id = useId();
+    const statusId = `${id}status`;
     const cx = slots(classNames, !unstyled && 'pc-styled', 'pc-buying-costs', className);
     const [priceText, setPriceText] = useState(amountText(defaultPrice));
     const [depositText, setDepositText] = useState(amountText(defaultDeposit));
-    const [buyer, setBuyer] = useState<BuyerType>(defaultBuyer);
+    const [buyer, setBuyer] = useState<BuyerType>(() => oneOf(BUYER_TYPES, defaultBuyer, BUYING_COSTS_DEFAULTS.buyer));
     const [feeTexts, setFeeTexts] = useState(() => eachFee((key) => amountText(defaultFees?.[key])));
 
+    // Memoised on the numbers, not the text, so retyping 1500 as 1,500 reports nothing new.
+    const price = parseAmount(priceText, Number.NaN);
+    // An empty deposit box is a purchase with no deposit, as an empty fee is no fee.
+    const deposit = parseAmount(depositText, 0);
+    const fees = BUYING_COST_FEES.map(({ key }) => parseAmount(feeTexts[key] ?? '', 0));
     const input = useMemo(
-        () => ({
-            price: parseAmount(priceText, Number.NaN),
-            // An empty deposit box is a purchase with no deposit, as an empty fee is no fee.
-            deposit: parseAmount(depositText, 0),
-            buyer,
-            ...eachFee((key) => parseAmount(feeTexts[key] ?? '', 0)),
-        }),
-        [priceText, depositText, buyer, feeTexts],
+        () => ({ price, deposit, buyer, ...eachFee((key) => parseAmount(feeTexts[key] ?? '', 0)) }),
+        // The fee list is fixed, so this is always the same number of dependencies.
+        [price, deposit, buyer, ...fees],
     );
     const { summary, error } = useMemo(() => getBuyingCostsSummary(input), [input]);
     const items = summary?.items.filter((item) => item.value > 0) ?? [];
@@ -86,7 +87,7 @@ export function BuyingCostsCalculator({
         <div {...rest} data-theme={theme} className={cx('root')}>
             <Styles unstyled={unstyled} inlineStyles={inlineStyles} />
 
-            <div className={cx('form')} data-layout="grid">
+            <div className={cx('form')} data-layout="grid" aria-describedby={error ? statusId : undefined}>
                 <MoneyField
                     cx={cx}
                     id={`${id}price`}
@@ -121,7 +122,9 @@ export function BuyingCostsCalculator({
                 ))}
             </div>
 
-            {summary ? (
+            <Status cx={cx} id={statusId} error={error} headline={summary?.rows[0]} />
+
+            {summary && (
                 <>
                     <ResultRows cx={cx} rows={summary.rows} />
 
@@ -154,12 +157,10 @@ export function BuyingCostsCalculator({
                     <PdfButton
                         pdf={pdf}
                         filename={`buying-costs-${input.price}.pdf`}
-                        className={cx('download')}
+                        cx={cx}
                         make={(api, options) => api.buyingCostsPdf(input, options)}
                     />
                 </>
-            ) : (
-                <Hints cx={cx} lines={[error]} />
             )}
         </div>
     );

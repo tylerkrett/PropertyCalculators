@@ -8,13 +8,14 @@ import {
     MAX_PRICE,
     type StampDutyEstimate,
 } from '../stamp-duty/estimate';
-import { formatNumber, parsePrice } from '../stamp-duty/format';
 import { getStampDutyTable, STAMP_DUTY_LABELS } from '../stamp-duty/labels';
+import { amountText, BandTable, CheckField, MoneyField, oneOf, parseAmount, Status, SummaryItems } from './fields';
 import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
 export type StampDutyCalculatorProps = BaseProps & {
     /** Price to start with, in pounds. */
     defaultPrice?: number;
+    /** Defaults to `"home-mover"`; a value that is not a buyer type falls back to it. */
     defaultBuyer?: BuyerType;
     defaultNonUkResident?: boolean;
     /** Show the band-by-band table. Defaults to `true`. */
@@ -25,6 +26,7 @@ export type StampDutyCalculatorProps = BaseProps & {
     onChange?: (estimate: StampDutyEstimate | null) => void;
 };
 
+/** Stamp Duty Land Tax on a purchase in England or Northern Ireland, with the band-by-band working. */
 export function StampDutyCalculator({
     defaultPrice,
     defaultBuyer = DEFAULT_BUYER_TYPE,
@@ -40,18 +42,20 @@ export function StampDutyCalculator({
     ...rest
 }: StampDutyCalculatorProps) {
     const id = useId();
+    const statusId = `${id}status`;
     const cx = slots(classNames, !unstyled && 'pc-styled', 'pc-stamp-duty', className);
-    const [priceText, setPriceText] = useState(defaultPrice ? formatNumber(defaultPrice) : '');
-    const [buyer, setBuyer] = useState<BuyerType>(defaultBuyer);
-    const [nonUkResident, setNonUkResident] = useState(defaultNonUkResident);
+    const [priceText, setPriceText] = useState(amountText(defaultPrice));
+    const [buyer, setBuyer] = useState<BuyerType>(() => oneOf(BUYER_TYPES, defaultBuyer, DEFAULT_BUYER_TYPE));
+    const [nonUkResident, setNonUkResident] = useState(Boolean(defaultNonUkResident));
 
-    const price = parsePrice(priceText);
-    const valid = Number.isFinite(price) && price > 0 && price <= MAX_PRICE;
+    const price = parseAmount(priceText, Number.NaN);
+    const valid = price > 0 && price <= MAX_PRICE;
     const estimate = useMemo(
         () => (valid ? calculateStampDuty({ price, buyer, nonUkResident }) : null),
         [valid, price, buyer, nonUkResident],
     );
     const table = estimate && getStampDutyTable(estimate);
+    const prompt = table ? null : price > MAX_PRICE ? 'Enter a lower price.' : 'Enter a price to see the stamp duty.';
 
     useEffect(() => {
         onChange?.(estimate);
@@ -63,24 +67,15 @@ export function StampDutyCalculator({
             <Styles unstyled={unstyled} inlineStyles={inlineStyles} />
 
             <div className={cx('form')}>
-                <div className={cx('field')}>
-                    <label className={cx('label')} htmlFor={`${id}price`}>
-                        {STAMP_DUTY_LABELS.price}
-                    </label>
-                    <div className={cx('money')}>
-                        <span className={cx('prefix')} aria-hidden="true">
-                            £
-                        </span>
-                        <input
-                            id={`${id}price`}
-                            className={cx('input')}
-                            inputMode="decimal"
-                            autoComplete="off"
-                            value={priceText}
-                            onChange={(event) => setPriceText(event.target.value)}
-                        />
-                    </div>
-                </div>
+                <MoneyField
+                    cx={cx}
+                    id={`${id}price`}
+                    label={STAMP_DUTY_LABELS.price}
+                    value={priceText}
+                    onChange={setPriceText}
+                    invalid={!valid && priceText.trim() !== ''}
+                    describedBy={prompt ? statusId : undefined}
+                />
 
                 <fieldset className={cx('field')}>
                     <legend className={cx('label')}>Buyer</legend>
@@ -104,73 +99,36 @@ export function StampDutyCalculator({
                     </div>
                 </fieldset>
 
-                <label className={cx('check')}>
-                    <input
-                        type="checkbox"
-                        checked={nonUkResident}
-                        onChange={(event) => setNonUkResident(event.target.checked)}
-                    />
-                    <span>{STAMP_DUTY_LABELS.nonUkResident}</span>
-                </label>
+                <CheckField
+                    cx={cx}
+                    id={`${id}resident`}
+                    label={STAMP_DUTY_LABELS.nonUkResident}
+                    checked={nonUkResident}
+                    onChange={setNonUkResident}
+                />
             </div>
 
-            {table ? (
-                <div aria-live="polite">
-                    <dl className={cx('summary')}>
-                        {table.summary.map((item) => (
-                            <div key={item.key} className={cx('summaryItem')} data-key={item.key}>
-                                <dt>{item.label}</dt>
-                                <dd>{item.formatted}</dd>
-                            </div>
-                        ))}
-                    </dl>
+            <Status cx={cx} id={statusId} error={prompt} headline={table?.summary[1]} />
 
+            {table && (
+                <div>
+                    <SummaryItems cx={cx} items={table.summary} />
                     {showBreakdown && (
-                        <table className={cx('table')}>
-                            <caption className={cx('heading')}>{STAMP_DUTY_LABELS.breakdown}</caption>
-                            <thead>
-                                <tr>
-                                    {table.columns.map((column) => (
-                                        <th key={column.key} scope="col" data-align={column.align}>
-                                            {column.label}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {table.rows.map((row) => (
-                                    <tr key={row.key}>
-                                        {table.columns.map((column) => (
-                                            <td key={column.key} data-align={column.align}>
-                                                {row[column.key]}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    {table.columns.map((column) => (
-                                        <td key={column.key} data-align={column.align}>
-                                            {table.totals[column.key]}
-                                        </td>
-                                    ))}
-                                </tr>
-                            </tfoot>
-                        </table>
+                        <BandTable
+                            cx={cx}
+                            caption={STAMP_DUTY_LABELS.breakdown}
+                            columns={table.columns}
+                            rows={table.rows}
+                            totals={table.totals}
+                        />
                     )}
-
                     <PdfButton
                         pdf={pdf}
                         filename={`stamp-duty-${estimate.price}.pdf`}
-                        className={cx('download')}
+                        cx={cx}
                         make={(api, options) => api.stampDutyPdf(estimate, options)}
                     />
                 </div>
-            ) : (
-                <p className={cx('hint')} role="status">
-                    {price > MAX_PRICE ? 'Enter a lower price.' : 'Enter a price to see the stamp duty.'}
-                </p>
             )}
         </div>
     );

@@ -58,7 +58,7 @@ describe('OverpaymentCalculator', () => {
 
     it('shows the form error instead of results', () => {
         const markup = html(<OverpaymentCalculator />);
-        expect(markup).toContain('<p class="pc-hint" role="status">Enter the mortgage balance.</p>');
+        expect(markup).toContain('class="pc-status" role="status" data-state="error">Enter the mortgage balance.</p>');
         expect(markup).not.toContain('class="pc-rows"');
         expect(html(finished({ defaultRate: 40 }))).toContain('Enter an interest rate between 0% and 25%.');
     });
@@ -102,7 +102,9 @@ describe('RemortgageCalculator', () => {
 
     it('shows the form error instead of results', () => {
         const markup = html(<RemortgageCalculator defaultBalance={200_000} defaultCurrentRate={5.5} />);
-        expect(markup).toContain('<p class="pc-hint" role="status">Enter a new interest rate between 0% and 25%.</p>');
+        expect(markup).toContain(
+            'class="pc-status" role="status" data-state="error">Enter a new interest rate between 0% and 25%.</p>',
+        );
         expect(markup).not.toContain('class="pc-rows"');
         expect(html(<RemortgageCalculator />)).toContain('Enter the mortgage balance.');
         expect(html(finished({ defaultFixedYears: 20 }))).toContain('Enter a fixed period of 1 to 15 whole years.');
@@ -152,7 +154,7 @@ describe('BuyingCostsCalculator', () => {
 
     it('shows the form error instead of results', () => {
         const markup = html(<BuyingCostsCalculator />);
-        expect(markup).toContain('<p class="pc-hint" role="status">Enter the property price.</p>');
+        expect(markup).toContain('class="pc-status" role="status" data-state="error">Enter the property price.</p>');
         expect(markup).not.toContain('class="pc-rows"');
         expect(markup).not.toContain('<table');
         expect(html(finished({ defaultDeposit: 400_000 }))).toContain('The deposit is more than the price.');

@@ -1,3 +1,4 @@
+import { base64Decode, base64Encode, utf8Decode, utf8Encode } from '../bytes';
 import { type CalculatedBand, computeActualRate, getBands, getStampDuty } from './calculate';
 import { formatPercentage, formatPrice, formatRange } from './format';
 
@@ -80,17 +81,14 @@ export type StampDutyPdfModel = {
 
 /** Packs a form's values into the `[hash]` segment of the PDF URL (base64 JSON). */
 export function encodeStampDutyHash(model: Partial<Record<keyof ParsedStampDutyQuery, unknown>>): string {
-    const json = JSON.stringify(model);
-    const bytes = new TextEncoder().encode(json);
-    return btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''));
+    return base64Encode(utf8Encode(JSON.stringify(model)));
 }
 
 /** Reads a `[hash]` segment back. Throws a `TypeError` on anything that isn't a base64 JSON object. */
 export function decodeStampDutyHash(hash: string): StampDutyQuery {
     let value: unknown;
     try {
-        const bytes = Uint8Array.from(atob(hash.replace(/-/g, '+').replace(/_/g, '/')), (char) => char.charCodeAt(0));
-        value = JSON.parse(new TextDecoder().decode(bytes));
+        value = JSON.parse(utf8Decode(base64Decode(hash.replace(/-/g, '+').replace(/_/g, '/'))));
     } catch {
         throw new TypeError('Invalid stamp duty hash: expected base64-encoded JSON');
     }

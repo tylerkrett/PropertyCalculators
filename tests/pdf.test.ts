@@ -5,52 +5,14 @@ import {
     leaseStampDutyPdf,
     mortgagePdf,
     mortgageReport,
-    pdfImage,
     stampDutyPdf,
     stampDutyReport,
 } from '../src/pdf/index';
 import { literal, parseColour, textWidth, wrapText } from '../src/pdf/writer';
 import { calculateLeaseStampDuty, calculateStampDuty } from '../src/stamp-duty/index';
+import { DATE, expectWellFormed, latin1, readPages, readText } from './pdf.helpers';
 
-const DATE = new Date(2026, 10, 18);
-const text = (pdf: Uint8Array) => new TextDecoder('latin1').decode(pdf);
-
-/** Every entry in the index must point at the object it names, and the trailer at the index. */
-function expectWellFormed(pdf: Uint8Array) {
-    const body = text(pdf);
-    expect(body.startsWith('%PDF-1.4\n')).toBe(true);
-    expect(body.endsWith('%%EOF\n')).toBe(true);
-    const xref = Number(/startxref\n(\d+)\n%%EOF/.exec(body)![1]);
-    expect(body.slice(xref, xref + 4)).toBe('xref');
-    const offsets = [...body.slice(xref).matchAll(/^(\d{10}) 00000 n $/gm)].map((match) => Number(match[1]));
-    offsets.forEach((offset, index) => expect(body.slice(offset, offset + 12)).toContain(`${index + 1} 0 obj\n`));
-    for (const [, length, stream] of body.matchAll(/\/Length (\d+) >>\nstream\n([\s\S]*?)\nendstream/g))
-        expect(stream!.length).toBe(Number(length));
-    return offsets.length;
-}
-
-/** A PNG built by hand: `pixels` are rows of samples, each row prefixed here with filter 0. */
-async function png(width: number, height: number, type: number, pixels: number[][], extra: [string, number[]][] = []) {
-    const chunk = (name: string, data: number[] | Uint8Array) => {
-        const size = new Uint8Array(4);
-        new DataView(size.buffer).setUint32(0, data.length);
-        return [...size, ...[...name].map((c) => c.charCodeAt(0)), ...data, 0, 0, 0, 0];
-    };
-    const header = new Uint8Array(13);
-    const view = new DataView(header.buffer);
-    view.setUint32(0, width);
-    view.setUint32(4, height);
-    header.set([8, type, 0, 0, 0], 8);
-    const raw = new Blob([new Uint8Array(pixels.flatMap((row) => [0, ...row]))]);
-    const packed = await new Response(raw.stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer();
-    return new Uint8Array([
-        ...[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
-        ...chunk('IHDR', header),
-        ...extra.flatMap(([name, data]) => chunk(name, data)),
-        ...chunk('IDAT', new Uint8Array(packed)),
-        ...chunk('IEND', []),
-    ]);
-}
+const text = latin1;
 
 describe('the writer', () => {
     it('escapes strings and keeps the file ASCII', () => {
@@ -88,6 +50,27 @@ describe('stampDutyPdf', () => {
         expect(body).toContain('(18 November 2026)');
         for (const band of estimate.bands) expect(body).toContain(band.formatted.tax.replace('£', '\\243'));
         expect(pdf.length).toBeLessThan(6000);
+    });
+
+    it('prints one page with every line in its usual place and order', async () => {
+        const pages = readPages(await stampDutyPdf(estimate, { date: DATE, name: 'Acme', footer: 'acme.example' }));
+        expect(pages).toHaveLength(1);
+        const printed = pages[0]!.map((item) => item.text);
+        expect(printed.slice(0, 7)).toEqual([
+            'Acme',
+            '18 November 2026',
+            'Stamp duty estimate',
+            'Stamp duty to pay',
+            '£156,250',
+            'Property price',
+            '£1,250,000',
+        ]);
+        expect(printed.slice(-2)).toEqual([expect.stringContaining('This is an estimate'), 'acme.example']);
+        expect(printed).not.toContain(expect.stringMatching(/^Page /));
+        // The title sits 54 points under the header rule and the footer on the bottom margin.
+        expect(pages[0]![2]).toMatchObject({ x: 56, y: 715.89, size: 21, bold: true });
+        expect(pages[0]!.at(-1)).toMatchObject({ x: 56, y: 56, size: 8.5 });
+        expect(readText(await stampDutyPdf(estimate, { date: DATE }))).toEqual(printed.slice(1, -1));
     });
 
     it('takes a name, a colour, a footer and its own small print', async () => {
@@ -139,50 +122,5 @@ describe('the other calculators', () => {
             await createPdf({ title: 'Yield', headline: { label: 'Gross yield', value: '5.2%' }, facts: [] }),
         );
         expect(body).toContain('(Gross yield)');
-    });
-});
-
-describe('logos', () => {
-    it('embeds a JPEG untouched', async () => {
-        // Start of image, then a baseline frame header: 8-bit, 20 high, 60 wide, 3 components.
-        const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 0, 20, 0, 60, 3, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        const image = await pdfImage(jpeg);
-        expect(image).toMatchObject({ width: 60, height: 20, filter: 'DCTDecode', colourSpace: 'DeviceRGB' });
-        const pdf = await createPdf({ title: 'T', headline: { label: 'L', value: 'V' }, facts: [] }, { logo: image });
-        expect(expectWellFormed(pdf)).toBe(8);
-        expect(text(pdf)).toContain('/Im1 Do');
-    });
-
-    it('splits a transparent PNG into colour and a mask', async () => {
-        const source = await png(2, 1, 6, [[255, 0, 0, 255, 0, 0, 255, 128]]);
-        const image = await pdfImage(source);
-        expect(image).toMatchObject({ width: 2, height: 1, filter: 'FlateDecode', colourSpace: 'DeviceRGB' });
-        expect(image.alpha).toBeDefined();
-        const pdf = await stampDutyPdf(calculateStampDuty({ price: 500_000 }), { logo: source.buffer });
-        expect(expectWellFormed(pdf)).toBe(9);
-        expect(text(pdf)).toContain('/SMask 9 0 R');
-    });
-
-    it('reads opaque, greyscale and palette PNGs, undoing the row filters', async () => {
-        expect((await pdfImage(await png(1, 1, 2, [[1, 2, 3]]))).alpha).toBeUndefined();
-        expect((await pdfImage(await png(2, 1, 0, [[10, 200]]))).width).toBe(2);
-        const palette = await png(
-            2,
-            1,
-            3,
-            [[0, 1]],
-            [
-                ['PLTE', [255, 0, 0, 0, 0, 255]],
-                ['tRNS', [255, 0]],
-            ],
-        );
-        expect((await pdfImage(palette)).alpha).toBeDefined();
-    });
-
-    it('says what is wrong with a file it cannot use', async () => {
-        await expect(pdfImage(new Uint8Array([71, 73, 70, 56]))).rejects.toThrow('JPEG or a PNG');
-        const interlaced = await png(1, 1, 2, [[1, 2, 3]]);
-        interlaced[28] = 1;
-        await expect(pdfImage(interlaced)).rejects.toThrow('Interlaced');
     });
 });

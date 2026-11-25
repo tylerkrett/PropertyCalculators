@@ -60,7 +60,7 @@ describe('PricePerAreaCalculator', () => {
 
     it('shows the form error instead of results', () => {
         const markup = html(<PricePerAreaCalculator defaultArea={800} pdf />);
-        expect(markup).toContain('<p class="pc-hint" role="status">Enter the property price.</p>');
+        expect(markup).toContain('class="pc-status" role="status" data-state="error">Enter the property price.</p>');
         expect(markup).not.toContain('class="pc-rows"');
         expect(markup).not.toContain('class="pc-download"');
         expect(html(<PricePerAreaCalculator defaultAmount={500_000} />)).toContain('Enter the floor area.');
@@ -119,7 +119,7 @@ describe('TenantDepositCalculator', () => {
 
     it('shows the form error instead of results', () => {
         const markup = html(<TenantDepositCalculator pdf />);
-        expect(markup).toContain('<p class="pc-hint" role="status">Enter the rent.</p>');
+        expect(markup).toContain('class="pc-status" role="status" data-state="error">Enter the rent.</p>');
         expect(markup).not.toContain('class="pc-rows"');
         expect(markup).not.toContain('class="pc-download"');
         expect(markup).toContain('the law in England only');
@@ -134,7 +134,7 @@ describe('TenantDepositCalculator', () => {
     });
 
     it('labels every control', () => {
-        expectLabelled(<TenantDepositCalculator />, 3);
+        expectLabelled(<TenantDepositCalculator />, 4);
     });
 
     it('ships its styles unless unstyled, and passes other props to the root', () => {

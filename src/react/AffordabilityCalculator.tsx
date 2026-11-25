@@ -10,13 +10,14 @@ import {
 import { BUYER_TYPES, type BuyerType } from '../stamp-duty/estimate';
 import {
     amountText,
-    Hints,
     MoneyField,
     NumberField,
+    oneOf,
     parseAmount,
     parseNumber,
     ResultRows,
     SelectField,
+    Status,
 } from './fields';
 import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
@@ -67,6 +68,7 @@ export function AffordabilityCalculator({
     ...rest
 }: AffordabilityCalculatorProps) {
     const id = useId();
+    const statusId = `${id}status`;
     const cx = slots(classNames, !unstyled && 'pc-styled', 'pc-affordability', className);
     const [incomeText, setIncomeText] = useState(amountText(defaultIncome));
     const [secondText, setSecondText] = useState(amountText(defaultSecondIncome));
@@ -75,21 +77,29 @@ export function AffordabilityCalculator({
     const [multiple, setMultiple] = useState(String(defaultIncomeMultiple));
     const [rate, setRate] = useState(String(defaultRate));
     const [term, setTerm] = useState(String(defaultTermYears));
-    const [buyer, setBuyer] = useState<BuyerType>(defaultBuyer);
+    const [buyer, setBuyer] = useState<BuyerType>(() => oneOf(BUYER_TYPES, defaultBuyer, AFFORDABILITY_DEFAULTS.buyer));
 
+    // Memoised on the numbers, not the text, so retyping 45000 as 45,000 reports nothing new.
+    // Only the first income is required; an empty box anywhere else counts as zero.
+    const income = parseAmount(incomeText, Number.NaN);
+    const secondIncome = parseAmount(secondText, 0);
+    const monthlyCommitments = parseAmount(commitmentsText, 0);
+    const deposit = parseAmount(depositText, 0);
+    const incomeMultiple = parseNumber(multiple, Number.NaN);
+    const rateValue = parseNumber(rate, Number.NaN);
+    const termYears = parseNumber(term, Number.NaN);
     const input = useMemo(
         (): AffordabilityInput => ({
-            // Only the first income is required; an empty box anywhere else counts as zero.
-            income: parseAmount(incomeText, Number.NaN),
-            secondIncome: parseAmount(secondText, 0),
-            monthlyCommitments: parseAmount(commitmentsText, 0),
-            deposit: parseAmount(depositText, 0),
-            incomeMultiple: parseNumber(multiple, Number.NaN),
-            rate: parseNumber(rate, Number.NaN),
-            termYears: parseNumber(term, Number.NaN),
+            income,
+            secondIncome,
+            monthlyCommitments,
+            deposit,
+            incomeMultiple,
+            rate: rateValue,
+            termYears,
             buyer,
         }),
-        [incomeText, secondText, commitmentsText, depositText, multiple, rate, term, buyer],
+        [income, secondIncome, monthlyCommitments, deposit, incomeMultiple, rateValue, termYears, buyer],
     );
     const { summary, error } = useMemo(() => getAffordabilitySummary(input), [input]);
 
@@ -104,7 +114,7 @@ export function AffordabilityCalculator({
         <div {...rest} data-theme={theme} className={cx('root')}>
             <Styles unstyled={unstyled} inlineStyles={inlineStyles} />
 
-            <div className={cx('form')} data-layout="grid">
+            <div className={cx('form')} data-layout="grid" aria-describedby={error ? statusId : undefined}>
                 <MoneyField
                     cx={cx}
                     id={`${id}income`}
@@ -166,18 +176,18 @@ export function AffordabilityCalculator({
                 />
             </div>
 
-            {summary ? (
+            <Status cx={cx} id={statusId} error={error} headline={summary?.rows[0]} />
+
+            {summary && (
                 <>
                     <ResultRows cx={cx} rows={summary.rows} />
                     <PdfButton
                         pdf={pdf}
                         filename={`affordability-${summary.maxPrice}.pdf`}
-                        className={cx('download')}
+                        cx={cx}
                         make={(api, options) => api.affordabilityPdf(input, options)}
                     />
                 </>
-            ) : (
-                <Hints cx={cx} lines={[error]} />
             )}
         </div>
     );

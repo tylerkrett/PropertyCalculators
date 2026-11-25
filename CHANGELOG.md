@@ -15,7 +15,29 @@
 - **Price per square foot:** price or rent per sq ft and per sq m, with a comparison helper.
 - **Tenant deposit caps:** the Tenant Fees Act limits on tenancy deposits, holding deposits and
   rent in advance in England.
+- **Selling costs:** `property-calculators/selling-costs` gives a seller's net proceeds after the
+  agent's fee, VAT, legal fees and the mortgage.
+- **Capital gains tax:** `property-calculators/capital-gains` works out the tax on selling a let
+  property or second home, with the 60-day date to report and pay by.
+- **Rent converter:** `property-calculators/rent-converter` gives a rent per week, month and year,
+  and per tenant.
+- **Tenant affordability:** `property-calculators/tenant-affordability` gives the income a rent
+  needs (30 times the monthly rent, 36 for a guarantor) and the most rent an income supports.
+- **Landlord net income:** `property-calculators/landlord-income` gives what a landlord keeps
+  after fees, costs, mortgage interest and income tax, with the finance cost credit. Covers 2026
+  to 2027 and the property rates announced for 2027 to 2028.
 - **React and PDF:** a component and a PDF report for each of the calculators above.
+- **PDFs:** long reports now run onto further pages, long text wraps, and more characters print
+  (€, •, ™, curly quotes). Oversized or malformed logo images are rejected quickly.
+- **Components:** results are announced to screen readers through a `pc-status` line; money boxes
+  read `750k` and `1.5m`; the stylesheet now renders correctly on React 18 servers; `pdf` accepts
+  `onError`.
+- **React Native:** the calculators and the PDFs now run on Hermes with no polyfills. PNG logos no
+  longer need `DecompressionStream`, the stamp duty hash no longer needs `TextDecoder` or `atob`,
+  and logos load from a `fetch` with no streaming body, a `Blob` with no `arrayBuffer()` and
+  `data:` URLs. New `pdfBase64` gives a PDF as text to save or share from an app; `downloadPdf`
+  now says so when there is no browser.
+- **Tenant deposits:** new `rentPaid` input for the rent-in-advance limit.
 - **Changed:** two to five dwellings bought together are charged the higher rates; six or more in
   Wales use non-residential rates; the refund claim deadline is one day earlier; remortgage
   results add `paymentSaving`, `balanceDifference` and `breakEvenWithinPeriod`.

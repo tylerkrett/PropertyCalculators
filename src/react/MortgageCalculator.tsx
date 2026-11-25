@@ -10,7 +10,17 @@ import {
     type RepaymentType,
 } from '../mortgage/index';
 import { BUYER_TYPES, type BuyerType, DEFAULT_BUYER_TYPE } from '../stamp-duty/estimate';
-import { formatNumber, parsePrice } from '../stamp-duty/format';
+import {
+    amountText,
+    MoneyField,
+    NumberField,
+    oneOf,
+    parseAmount,
+    parseNumber,
+    ResultRows,
+    SelectField,
+    Status,
+} from './fields';
 import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
 export type MortgageCalculatorProps = BaseProps & {
@@ -21,8 +31,9 @@ export type MortgageCalculatorProps = BaseProps & {
     /** Annual interest rate, percent. */
     defaultRate?: number;
     defaultTermYears?: number;
+    /** Defaults to `"repayment"`; a value that is not a repayment type falls back to it. */
     defaultType?: RepaymentType;
-    /** Buyer type for the stamp duty in "cash needed upfront". */
+    /** Buyer type for the stamp duty in "cash needed upfront". An unknown value falls back to `"home-mover"`. */
     defaultBuyer?: BuyerType;
     /** Adds a "Download PDF" button: `true`, or your brand (`name`, `colour`, `logo`, `footer`...). */
     pdf?: PdfProp;
@@ -30,8 +41,7 @@ export type MortgageCalculatorProps = BaseProps & {
     onChange?: (summary: MortgageSummary | null) => void;
 };
 
-const amount = (text: string) => (text.trim() === '' ? Number.NaN : parsePrice(text));
-
+/** Monthly mortgage payments, the interest over the term and the cash needed upfront. */
 export function MortgageCalculator({
     defaultPrice,
     defaultDeposit,
@@ -49,29 +59,29 @@ export function MortgageCalculator({
     ...rest
 }: MortgageCalculatorProps) {
     const id = useId();
+    const statusId = `${id}status`;
     const cx = slots(classNames, !unstyled && 'pc-styled', 'pc-mortgage', className);
-    const [priceText, setPriceText] = useState(defaultPrice ? formatNumber(defaultPrice) : '');
+    const [priceText, setPriceText] = useState(amountText(defaultPrice));
     const [depositText, setDepositText] = useState(() => {
         const deposit =
             defaultDeposit ??
             (defaultPrice ? depositFromPercent(defaultPrice, MORTGAGE_DEFAULTS.depositPercent) : undefined);
-        return deposit === undefined ? '' : formatNumber(deposit);
+        // A deposit of nothing is a real starting value here, so 0 shows as "0".
+        return deposit === 0 ? '0' : amountText(deposit);
     });
-    const [rate, setRate] = useState(String(defaultRate));
-    const [term, setTerm] = useState(String(defaultTermYears));
-    const [type, setType] = useState<RepaymentType>(defaultType);
-    const [buyer, setBuyer] = useState<BuyerType>(defaultBuyer);
+    const [rateText, setRateText] = useState(String(defaultRate));
+    const [termText, setTermText] = useState(String(defaultTermYears));
+    const [type, setType] = useState<RepaymentType>(() => oneOf(REPAYMENT_TYPES, defaultType, MORTGAGE_DEFAULTS.type));
+    const [buyer, setBuyer] = useState<BuyerType>(() => oneOf(BUYER_TYPES, defaultBuyer, DEFAULT_BUYER_TYPE));
 
+    // Memoised on the numbers, not the text, so retyping 500000 as 500,000 reports nothing new.
+    const price = parseAmount(priceText, Number.NaN);
+    const deposit = parseAmount(depositText, Number.NaN);
+    const rate = parseNumber(rateText, Number.NaN);
+    const termYears = Number(termText);
     const input = useMemo(
-        () => ({
-            price: amount(priceText),
-            deposit: amount(depositText),
-            rate: rate.trim() === '' ? Number.NaN : Number(rate),
-            termYears: Number(term),
-            type,
-            buyer,
-        }),
-        [priceText, depositText, rate, term, type, buyer],
+        () => ({ price, deposit, rate, termYears, type, buyer }),
+        [price, deposit, rate, termYears, type, buyer],
     );
     const { summary, error } = useMemo(() => getMortgageSummary(input), [input]);
 
@@ -80,129 +90,68 @@ export function MortgageCalculator({
         // Report results, not new callback identities.
     }, [summary]);
 
-    const money = (key: string, label: string, value: string, set: (value: string) => void) => (
-        <div className={cx('field')}>
-            <label className={cx('label')} htmlFor={`${id}${key}`}>
-                {label}
-            </label>
-            <div className={cx('money')}>
-                <span className={cx('prefix')} aria-hidden="true">
-                    £
-                </span>
-                <input
-                    id={`${id}${key}`}
-                    className={cx('input')}
-                    inputMode="decimal"
-                    autoComplete="off"
-                    value={value}
-                    onChange={(event) => set(event.target.value)}
-                />
-            </div>
-        </div>
-    );
-
     return (
         <div {...rest} data-theme={theme} className={cx('root')}>
             <Styles unstyled={unstyled} inlineStyles={inlineStyles} />
 
-            <div className={cx('form')} data-layout="grid">
-                {money('price', 'Property price', priceText, setPriceText)}
-                {money('deposit', 'Deposit', depositText, setDepositText)}
-
-                <div className={cx('field')}>
-                    <label className={cx('label')} htmlFor={`${id}rate`}>
-                        Interest rate (%)
-                    </label>
-                    <input
-                        id={`${id}rate`}
-                        className={cx('input')}
-                        type="number"
-                        step="0.05"
-                        min={MORTGAGE_LIMITS.rate.min}
-                        max={MORTGAGE_LIMITS.rate.max}
-                        value={rate}
-                        onChange={(event) => setRate(event.target.value)}
-                    />
-                </div>
-
-                <div className={cx('field')}>
-                    <label className={cx('label')} htmlFor={`${id}term`}>
-                        Term (years)
-                    </label>
-                    <input
-                        id={`${id}term`}
-                        className={cx('input')}
-                        type="number"
-                        min={MORTGAGE_LIMITS.term.min}
-                        max={MORTGAGE_LIMITS.term.max}
-                        value={term}
-                        onChange={(event) => setTerm(event.target.value)}
-                    />
-                </div>
-
-                <div className={cx('field')}>
-                    <label className={cx('label')} htmlFor={`${id}type`}>
-                        Type
-                    </label>
-                    <select
-                        id={`${id}type`}
-                        className={cx('select')}
-                        value={type}
-                        onChange={(event) => setType(event.target.value as RepaymentType)}
-                    >
-                        {REPAYMENT_TYPES.map((option) => (
-                            <option key={option.value} value={option.value}>
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className={cx('field')}>
-                    <label className={cx('label')} htmlFor={`${id}buyer`}>
-                        Buyer (for stamp duty)
-                    </label>
-                    <select
-                        id={`${id}buyer`}
-                        className={cx('select')}
-                        value={buyer}
-                        onChange={(event) => setBuyer(event.target.value as BuyerType)}
-                    >
-                        {BUYER_TYPES.map((option) => (
-                            <option key={option.value} value={option.value}>
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+            <div className={cx('form')} data-layout="grid" aria-describedby={error ? statusId : undefined}>
+                <MoneyField
+                    cx={cx}
+                    id={`${id}price`}
+                    label="Property price"
+                    value={priceText}
+                    onChange={setPriceText}
+                />
+                <MoneyField cx={cx} id={`${id}deposit`} label="Deposit" value={depositText} onChange={setDepositText} />
+                <NumberField
+                    cx={cx}
+                    id={`${id}rate`}
+                    label="Interest rate (%)"
+                    step={0.05}
+                    min={MORTGAGE_LIMITS.rate.min}
+                    max={MORTGAGE_LIMITS.rate.max}
+                    value={rateText}
+                    onChange={setRateText}
+                />
+                <NumberField
+                    cx={cx}
+                    id={`${id}term`}
+                    label="Term (years)"
+                    min={MORTGAGE_LIMITS.term.min}
+                    max={MORTGAGE_LIMITS.term.max}
+                    value={termText}
+                    onChange={setTermText}
+                />
+                <SelectField
+                    cx={cx}
+                    id={`${id}type`}
+                    label="Type"
+                    value={type}
+                    onChange={setType}
+                    options={REPAYMENT_TYPES}
+                />
+                <SelectField
+                    cx={cx}
+                    id={`${id}buyer`}
+                    label="Buyer (for stamp duty)"
+                    value={buyer}
+                    onChange={setBuyer}
+                    options={BUYER_TYPES}
+                />
             </div>
 
-            {summary ? (
+            <Status cx={cx} id={statusId} error={error} headline={summary?.rows[0]} />
+
+            {summary && (
                 <>
-                    <dl className={cx('rows')} aria-live="polite">
-                        {summary.rows.map((row, index) => (
-                            <div
-                                key={row.key}
-                                className={cx('row')}
-                                data-key={row.key}
-                                data-lead={index === 0 || undefined}
-                            >
-                                <dt>{row.label}</dt>
-                                <dd>{row.formatted}</dd>
-                            </div>
-                        ))}
-                    </dl>
+                    <ResultRows cx={cx} rows={summary.rows} />
                     <PdfButton
                         pdf={pdf}
                         filename={`mortgage-${input.price}.pdf`}
-                        className={cx('download')}
+                        cx={cx}
                         make={(api, options) => api.mortgagePdf(input, options)}
                     />
                 </>
-            ) : (
-                <p className={cx('hint')} role="status">
-                    {error}
-                </p>
             )}
         </div>
     );

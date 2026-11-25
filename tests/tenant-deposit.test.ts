@@ -36,9 +36,10 @@ describe('calculateTenantDeposit', () => {
     it('rounds every maximum down to the penny, so the figure never exceeds the cap', () => {
         // Five weeks of £1,200 a month is £1,384.6153…: £1,384.62 would be a prohibited payment.
         expect(calculateTenantDeposit({ rent: 1_200 })?.maxTenancyDeposit).toBe(1_384.61);
-        // One week of £1,000 a month is £230.7692…: shown to the nearest penny, capped a penny lower.
+        // One week of £1,000 a month is £230.7692…: the week's rent and the holding deposit cap are
+        // both rounded down, so the two rows never sit a penny apart.
         const result = calculateTenantDeposit({ rent: 1_000 });
-        expect(result?.weeklyRent).toBe(230.77);
+        expect(result?.weeklyRent).toBe(230.76);
         expect(result?.maxHoldingDeposit).toBe(230.76);
         expect(result?.maxTenancyDeposit).toBe(1_153.84);
     });

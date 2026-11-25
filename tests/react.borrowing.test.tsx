@@ -57,7 +57,9 @@ describe('AffordabilityCalculator', () => {
 
     it('shows the form error instead of results', () => {
         const empty = html(<AffordabilityCalculator pdf />);
-        expect(empty).toContain('<p class="pc-hint" role="status">Enter your yearly income before tax.</p>');
+        expect(empty).toContain(
+            'class="pc-status" role="status" data-state="error">Enter your yearly income before tax.</p>',
+        );
         expect(empty).not.toContain('class="pc-rows"');
         expect(empty).not.toContain('class="pc-download"');
         expect(html(<AffordabilityCalculator defaultIncome={45_000} defaultRate={40} />)).toContain(
@@ -93,7 +95,7 @@ describe('BuyToLetCalculator', () => {
     it('renders the verdict and the rows from its defaults', () => {
         const markup = html(<BuyToLetCalculator {...letting} defaultBorrower="higher-rate" />);
         expect(markup).toContain(
-            '<p class="pc-hint" role="status">Falls short: the rent covers the stressed interest by 139.63%, and the lender needs 145%.</p>',
+            '<p class="pc-hint">Falls short: the rent covers the stressed interest by 139.63%, and the lender needs 145%.</p>',
         );
         expect(markup).toContain('data-lead="true"><dt>Interest cover ratio</dt><dd>139.63%</dd>');
         expect(markup).toContain('<dt>Loan amount</dt><dd>£187,500</dd>');
@@ -115,7 +117,7 @@ describe('BuyToLetCalculator', () => {
 
     it('shows the form error instead of results', () => {
         const markup = html(<BuyToLetCalculator defaultPrice={250_000} defaultDeposit={62_500} pdf />);
-        expect(markup).toContain('<p class="pc-hint" role="status">Enter the rent.</p>');
+        expect(markup).toContain('class="pc-status" role="status" data-state="error">Enter the rent.</p>');
         expect(markup).not.toContain('class="pc-rows"');
         expect(markup).not.toContain('class="pc-download"');
         expect(html(<BuyToLetCalculator defaultRent={1_200} />)).toContain('Enter the property price.');

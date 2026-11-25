@@ -55,9 +55,14 @@ estimate.bands[2].formatted;      // { range: "£250,001 – £925,000", rate: "
 | **[Buy-to-let check](#buy-to-let-check)** | Whether the rent covers the loan the way lenders test it. | `property-calculators/buy-to-let` |
 | **[Price per square foot](#price-per-square-foot)** | Price or rent per sq ft and per sq m, and how it compares with the local average. | `property-calculators/price-per-area` |
 | **[Tenant deposit caps](#tenant-deposit-caps)** | The legal maximum tenancy deposit, holding deposit and rent in advance in England. | `property-calculators/tenant-deposit` |
+| **[Selling costs](#selling-costs)** | What a seller walks away with after the agent's fee, VAT, legal fees and the mortgage. | `property-calculators/selling-costs` |
+| **[Capital gains tax](#capital-gains-tax)** | The tax on selling a let property or second home, and the date to report and pay by. | `property-calculators/capital-gains` |
+| **[Rent converter](#rent-converter)** | A rent per week, per month and per year, and each tenant's share. | `property-calculators/rent-converter` |
+| **[Tenant affordability](#tenant-affordability)** | The income a rent needs under the usual referencing test, and the most rent an income supports. | `property-calculators/tenant-affordability` |
+| **[Landlord net income](#landlord-net-income)** | What a landlord keeps after fees, costs, mortgage interest and income tax. | `property-calculators/landlord-income` |
 | **[Desk calculator](#desk-calculator)** | A pocket calculator that also does VAT, rent per week ↔ per month, ft² ↔ m², and £ ↔ € or $. | `property-calculators/calculator` |
 | **[React components](#react-components)** | Each calculator as a drop-in component, styled by default and themeable. Optional. | `property-calculators/react` |
-| **[Branded PDFs](#branded-pdfs)** | Any result as a one-page PDF with your logo, colour and footer. No PDF library needed. | `property-calculators/pdf` |
+| **[Branded PDFs](#branded-pdfs)** | Any result as a PDF with your logo, colour and footer. No PDF library needed. | `property-calculators/pdf` |
 
 <table>
 <tr>
@@ -73,7 +78,7 @@ estimate.bands[2].formatted;      // { range: "£250,001 – £925,000", rate: "
 </table>
 
 - **Headless core.** Works with React, Vue, Svelte, a server template, a CLI or a spreadsheet export.
-- **Zero dependencies.** About 20 kB minified and gzipped for every calculator, 7 kB for stamp duty alone; PDFs are a separate 8 kB that loads only when used. React is only needed if you use the components.
+- **Zero dependencies.** About 29 kB minified and gzipped for every calculator, 8 kB for stamp duty alone; the PDF writer is a separate 10 kB that loads only when used. React is only needed if you use the components.
 - **Runs anywhere.** Node 18+, browsers, edge runtimes, React Native. ESM and CommonJS, fully typed.
 - **Plain JSON out.** Stamp duty and mortgage results cross an API or a server-to-client boundary untouched.
 - **Deterministic.** No `Intl`, no locale lookups: the server and the browser always print the same string.
@@ -120,8 +125,12 @@ Each of those is around a hundred lines of JSX with no maths in it. Read them in
 
 ## Install
 
+Use whichever package manager your project already uses:
+
 ```sh
 npm install property-calculators
+pnpm add property-calculators
+yarn add property-calculators
 ```
 
 ```ts
@@ -131,10 +140,11 @@ import { createCalculator, CALCULATOR_LAYOUT } from 'property-calculators/calcul
 
 | Entry point | Contains |
 | --- | --- |
-| `property-calculators` | Stamp duty, mortgage and rental yield, plus the desk calculator under the `calculator` namespace |
+| `property-calculators` | Every calculator, plus the desk calculator under the `calculator` namespace |
 | `property-calculators/stamp-duty` | Stamp duty only |
 | `property-calculators/mortgage` | Mortgage only |
 | `property-calculators/rental-yield` | Rental yield only |
+| `property-calculators/land-tax`, `/affordability`, `/overpayment`, `/buying-costs`, `/buy-to-let`, `/price-per-area`, `/tenant-deposit`, `/selling-costs`, `/capital-gains`, `/rent-converter`, `/tenant-affordability`, `/landlord-income` | One calculator each |
 | `property-calculators/calculator` | Desk calculator only |
 | `property-calculators/pdf` | Branded PDF output for every calculator |
 | `property-calculators/react` | Ready-made React components (needs React 18 or later) |
@@ -144,10 +154,12 @@ import { createCalculator, CALCULATOR_LAYOUT } from 'property-calculators/calcul
 
 ## React components
 
-Thirteen components, one import, no CSS file to load and nothing to configure. The four below,
+Eighteen components, one import, no CSS file to load and nothing to configure. The four below,
 plus `PropertyTaxCalculator`, `CompanyStampDutyCalculator`, `AffordabilityCalculator`,
 `OverpaymentCalculator`, `RemortgageCalculator`, `BuyingCostsCalculator`, `BuyToLetCalculator`,
-`PricePerAreaCalculator` and `TenantDepositCalculator`. Each takes `default*` props for its
+`PricePerAreaCalculator`, `TenantDepositCalculator`, `SellingCostsCalculator`,
+`CapitalGainsCalculator`, `RentConverterCalculator`, `TenantAffordabilityCalculator` and
+`LandlordIncomeCalculator`. Each takes `default*` props for its
 fields, `pdf` and `onChange`.
 
 ```tsx
@@ -256,9 +268,31 @@ All of them accept `className`, `classNames`, `theme`, `unstyled`, `inlineStyles
 | `StampDutyCalculator` | `defaultPrice`, `defaultBuyer`, `defaultNonUkResident`, `showBreakdown` (default `true`), `pdf`, `onChange(estimate \| null)` |
 | `MortgageCalculator` | `defaultPrice`, `defaultDeposit` (default 25% of the price), `defaultRate`, `defaultTermYears`, `defaultType`, `defaultBuyer`, `pdf`, `onChange(summary \| null)` |
 | `RentalYieldCalculator` | `defaultPrice`, `defaultRent`, `defaultRentPeriod` (default `"month"`), `defaultAnnualCosts`, `defaultPurchaseCosts`, `defaultVoidWeeks`, `defaultBuyer` (default `"additional-property"`), `pdf`, `onChange(summary \| null)` |
+| `PropertyTaxCalculator` | `defaultCountry`, `defaultPrice`, `defaultBuyer`, `defaultPropertyType`, `defaultNonUkResident`, `showBreakdown`, `pdf`, `onChange(estimate \| null)` |
+| `CompanyStampDutyCalculator` | `defaultPrice`, `defaultRelief`, `defaultNonUkResident`, `showBreakdown`, `pdf`, `onChange(result \| null)` |
+| `AffordabilityCalculator` | `defaultIncome`, `defaultSecondIncome`, `defaultMonthlyCommitments`, `defaultDeposit`, `defaultIncomeMultiple`, `defaultRate`, `defaultTermYears`, `defaultBuyer`, `pdf`, `onChange(summary \| null)` |
+| `OverpaymentCalculator` | `defaultBalance`, `defaultRate`, `defaultTermYears`, `defaultMonthlyOverpayment`, `defaultLumpSum`, `pdf`, `onChange(summary \| null)` |
+| `RemortgageCalculator` | `defaultBalance`, `defaultCurrentRate`, `defaultNewRate`, `defaultTermYears`, `defaultProductFee`, `defaultEarlyRepaymentCharge`, `defaultFeePayment`, `defaultFixedYears`, `pdf`, `onChange(summary \| null)` |
+| `BuyingCostsCalculator` | `defaultPrice`, `defaultDeposit`, `defaultBuyer`, `defaultFees` (keyed by fee), `showBreakdown`, `pdf`, `onChange(summary \| null)` |
+| `BuyToLetCalculator` | `defaultRent`, `defaultRentPeriod`, `defaultPrice`, `defaultDeposit`, `defaultStressRate`, `defaultBorrower`, `pdf`, `onChange(summary \| null)` |
+| `PricePerAreaCalculator` | `defaultBasis` (`"sale"` or `"rent"`), `defaultAmount`, `defaultRentPeriod`, `defaultArea`, `defaultAreaUnit`, `defaultComparable`, `pdf`, `onChange(summary \| null)` |
+| `TenantDepositCalculator` | `defaultRent`, `defaultRentPeriod`, `defaultRentPaid`, `defaultProposedDeposit`, `pdf`, `onChange(summary \| null)` |
+| `SellingCostsCalculator` | `defaultPrice`, `defaultMortgage`, `defaultEarlyRepaymentCharge`, `defaultAgentFeePercent`, `defaultAgentFeeFixed`, `defaultAgentFeeIncludesVat`, `defaultFees` (keyed by fee), `showBreakdown`, `pdf`, `onChange(summary \| null)` |
+| `CapitalGainsCalculator` | `defaultSalePrice`, `defaultPurchasePrice`, `defaultBuyingCosts`, `defaultSellingCosts`, `defaultImprovements`, `defaultIncome`, `defaultAllowanceUsed`, `defaultShare`, `defaultCompletionDate`, `defaultTaxYear`, `pdf`, `onChange(summary \| null)` |
+| `RentConverterCalculator` | `defaultRent`, `defaultPeriod`, `defaultTenants`, `pdf`, `onChange(summary \| null)` |
+| `TenantAffordabilityCalculator` | `defaultRent`, `defaultRentPeriod`, `defaultIncome`, `defaultTenants`, `defaultMultiple`, `defaultGuarantorMultiple`, `pdf`, `onChange(summary \| null)` |
+| `LandlordIncomeCalculator` | `defaultRent`, `defaultRentPeriod`, `defaultVoidWeeks`, `defaultManagementFeePercent`, `defaultFeesIncludeVat`, `defaultMortgageInterest`, `defaultCosts` (keyed by cost), `defaultOtherIncome`, `defaultTaxYear`, `pdf`, `onChange(summary \| null)` |
 | `DeskCalculator` | `rates`, `keyboard` (default `true`), `conversions` (default `true`), `calculator` (your own store from `createCalculator()`) |
 
-`pdf` adds a download button: `true` for a plain page, or [your brand](#branded-pdfs).
+`pdf` adds a download button: `true` for a plain page, or [your brand](#branded-pdfs). Add
+`onError` to the brand object to hear about a PDF that could not be made.
+
+Money boxes read what people type: `750,000`, `£750,000`, `750k` and `1.5m` all work, and anything
+else is reported as a form error instead of being guessed at.
+
+Each component announces its headline result or form error to screen readers through a
+`pc-status` line, which the default styles hide when it only repeats the result. If you pass
+`unstyled`, hide `.pc-status:not([data-state=error])` yourself.
 
 `onChange` hands you the same objects the headless functions return, so you can react to a result
 elsewhere on the page:
@@ -378,6 +412,48 @@ const logo = await pdfImage('/logo.png');
 const files = await Promise.all(estimates.map((estimate) => stampDutyPdf(estimate, { logo })));
 ```
 
+### In React Native
+
+The calculators and the PDFs run in React Native as they are, on Hermes, with no polyfills and no
+native module. Import the functions and lay the results out in your own `<View>`s and `<Text>`s:
+
+```tsx
+import { calculateStampDuty } from 'property-calculators';
+import { pdfBase64, stampDutyPdf } from 'property-calculators/pdf';
+// Before Expo SDK 54 this is 'expo-file-system'.
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+
+const estimate = calculateStampDuty({ price: 750_000 });
+// estimate.formatted.stampDuty is "£27,500": render it in a <Text>.
+
+async function sharePdf() {
+    const pdf = await stampDutyPdf(estimate, {
+        name: 'Harlow & Finch',
+        colour: '#b3261e',
+        logo: 'https://harlowfinch.example/logo.png',
+    });
+
+    const uri = `${FileSystem.cacheDirectory}stamp-duty.pdf`;
+    await FileSystem.writeAsStringAsync(uri, pdfBase64(pdf), { encoding: 'base64' });
+    await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
+}
+```
+
+- **Saving.** A phone has no page to download from, so `downloadPdf` throws there. `pdfBase64`
+  gives the file as text, which is what Expo's file system, `react-native-fs`
+  (`writeFile(path, pdfBase64(pdf), 'base64')`) and the share sheet take.
+- **Logos.** A web address, a `data:` URL, a `file://` path, a `Blob` or raw bytes all work. An
+  image bundled with `require('./logo.png')` has no address to read in an Android release build,
+  so copy it to a file first (Expo's `Asset.fromModule(...).downloadAsync()` gives a `localUri`)
+  or keep the logo as base64 text.
+- **Components.** `property-calculators/react` renders HTML, so it is for React on the web (and
+  React Native Web). In a native app, build the screen from the headless functions: the
+  [form state](#form-state) helpers and each summary's `rows` do most of it.
+- **Bundling.** The entry points (`property-calculators/pdf` and the rest) are package exports,
+  which Metro reads by default from React Native 0.79. On an older version, set
+  `resolver.unstable_enablePackageExports = true` in `metro.config.js`.
+
 ### A calculator of your own
 
 The page layout is not tied to these calculators. Describe any result as a headline, some facts
@@ -412,13 +488,15 @@ writes that file by hand, which is why the feature adds no dependency.
   is measured with Helvetica's published widths, which is how figures line up on the right.
 - **A JPEG logo goes in untouched.** PDF stores JPEG natively.
 - **A PNG logo is unpacked** into colour and transparency using the `DecompressionStream` built
-  into browsers and Node 18+. That is the only reason the functions are `async`.
+  into browsers and Node 18+. That is the only reason the functions are `async`. React Native has
+  no such stream, so there a small inflate and deflate written in plain JavaScript take its place.
 - **It is small and loads late.** About 7 kB gzipped, in its own entry point. The React components
   fetch it on the first click of the button, so a visitor who never downloads a PDF never pays for it.
 - **The files are small.** A plain estimate is about 4 kB; a logo adds roughly its own size.
 
-Limits worth knowing: one A4 page, Western European characters (anything else prints as `?`),
-and logos must be JPEG or 8-bit non-interlaced PNG, which is what design tools export by default.
+Limits worth knowing: A4 pages, Western European characters (accents outside that set fall back to
+the plain letter, anything else prints as `?`), and logos must be JPEG or 8-bit non-interlaced PNG
+up to 4,096 px a side and 5 MB. On a server, never pass a logo URL that came from a visitor.
 
 ---
 
@@ -1068,6 +1146,136 @@ down to the penny, because anything over the cap is a prohibited payment. Rents 
 year are outside the Act and return an error. Wales, Scotland and Northern Ireland have different
 rules and are not covered.
 
+## Selling costs
+
+What the seller walks away with: the price less the agent's fee, VAT, legal fees and the mortgage.
+
+```ts
+import { getSellingCostsSummary } from 'property-calculators/selling-costs';
+
+const { summary } = getSellingCostsSummary({
+    price: 350_000,
+    mortgage: 180_000,
+    agentFeePercent: 1.25, // or agentFeeFixed, in pounds
+    legalFees: 1_500,
+});
+
+summary.formatted.agentFee;    // "£4,375"
+summary.formatted.agentFeeVat; // "£875"     VAT at 20% is added unless agentFeeIncludesVat is true
+summary.formatted.totalCosts;  // "£6,750"
+summary.formatted.netProceeds; // "£163,250"
+summary.shortfall;             // false; true when the sale doesn't clear the mortgage
+```
+
+Also takes `earlyRepaymentCharge`, `epc`, `removals` and a list of `extras` with your own labels.
+`summary.items` lists every line with its share of the price.
+
+## Capital gains tax
+
+The tax when a UK-resident individual sells a let property or second home.
+
+```ts
+import { getCapitalGainsSummary } from 'property-calculators/capital-gains';
+
+const { summary } = getCapitalGainsSummary({
+    salePrice: 300_000,
+    purchasePrice: 180_000,
+    buyingCosts: 4_000,
+    sellingCosts: 6_000,
+    improvements: 10_000,
+    income: 40_000,               // the seller's income for the year, before allowances
+    completionDate: '2026-11-25', // optional
+});
+
+summary.formatted.gain;        // "£100,000"
+summary.formatted.taxableGain; // "£97,000"     after the £3,000 annual exempt amount
+summary.formatted.tax;         // "£22,663.80"  £10,270 at 18%, £86,730 at 24%
+summary.formatted.reportBy;    // "24 January 2027"  60 days after completion
+summary.notes;                 // what the figure assumes, in plain English
+```
+
+Rates are 18% within the basic-rate band and 24% above it. `share` scales the gain to the part
+you own, and `allowanceUsed` takes off any exempt amount other gains have used. A loss gives no
+tax and `loss: true`. Private residence relief, lettings relief, losses brought forward, companies
+and non-residents are not modelled: this is a guide, not tax advice.
+
+## Rent converter
+
+```ts
+import { getRentConversionSummary } from 'property-calculators/rent-converter';
+
+const { summary } = getRentConversionSummary({ rent: 650, period: 'week', tenants: 2 });
+
+summary.formatted.monthly;          // "£2,816.67"
+summary.formatted.annual;           // "£33,800.00"
+summary.formatted.perPersonMonthly; // "£1,408.33"
+```
+
+A year is 52 weeks or 12 months, the same convention as every other calculator here, so a monthly
+rent is the weekly rent × 52 ÷ 12. `convertRent` returns the numbers alone.
+
+## Tenant affordability
+
+The referencing test letting agents use: income of 30 times the monthly rent for tenants, 36 times
+for a guarantor.
+
+```ts
+import { getTenantAffordabilitySummary, maxRentForIncome } from 'property-calculators/tenant-affordability';
+
+const { summary } = getTenantAffordabilitySummary({ rent: 1_500, tenants: 2, income: 42_000 });
+
+summary.formatted.incomeNeeded;          // "£45,000"
+summary.formatted.guarantorIncomeNeeded; // "£54,000"
+summary.passes;                          // false
+summary.formatted.shortfall;             // "£3,000"
+summary.formatted.maxMonthlyRent;        // "£1,400"  the most this income supports
+
+maxRentForIncome({ income: 45_000 }); // { monthly: 1500, weekly: 346.15, annual: 18000 }
+```
+
+Leave `income` out to get the requirement alone. The multiples are market convention, not law;
+set your own with `multiple` and `guarantorMultiple`. `TENANT_AFFORDABILITY_NOTICE` says so, and
+that in England a tenant who falls short can no longer make it up with several months' rent in
+advance (Renters' Rights Act 2025).
+
+## Landlord net income
+
+What an individual landlord keeps after fees, costs, mortgage interest and income tax, including
+the basic-rate credit that replaced mortgage interest relief ("section 24").
+
+```ts
+import { getLandlordIncomeSummary } from 'property-calculators/landlord-income';
+
+const { summary } = getLandlordIncomeSummary({
+    rent: 1_200,               // per month by default
+    voidWeeks: 2,
+    managementFeePercent: 10,  // VAT is added unless feesIncludeVat is true
+    insurance: 300,
+    maintenance: 900,
+    mortgageInterest: 6_000,   // per year
+    otherIncome: 30_000,       // salary or pension, before allowances
+});
+
+summary.formatted.rentCollected;       // "£13,846.15"
+summary.formatted.profitBeforeFinance; // "£10,984.61"
+summary.formatted.taxBeforeCredit;     // "£2,196.92"
+summary.formatted.financeCredit;       // "£1,200"     20% of the mortgage interest
+summary.formatted.tax;                 // "£996.92"
+summary.formatted.netIncome;           // "£3,987.69"  £332.31 a month
+```
+
+The rent is taxed on top of `otherIncome`, so it lands in the right bands and counts any personal
+allowance lost above £100,000. The default tax year is 2026 to 2027. Pass `taxYear: '2027-28'` for
+the separate property rates that start on 6 April 2027: the example's tax becomes £1,196.31.
+
+> [!NOTE]
+> The 2027 to 2028 figures use the 24%, 44% and 49% property rates announced in the October 2026
+> Budget, which are not yet law (the Finance Act 2026 set 22%, 42% and 47%). Each result for that
+> year says so in `notes`.
+
+Scottish income tax rates, the £1,000 property allowance, companies and joint ownership are not
+modelled. A guide, not tax advice.
+
 ## Desk calculator
 
 A pocket calculator with the conversions property people reach for all day:
@@ -1378,6 +1586,26 @@ Types: `Country`, `PropertyTaxInput`, `PropertyTaxEstimate`, `PropertyTaxSupplem
 </details>
 
 <details>
+<summary><b>Selling, capital gains, rent and landlord income</b></summary>
+
+| Export | Description |
+| --- | --- |
+| `getSellingCostsSummary(input)`, `calculateSellingCosts(input)`, `sellingCostsInputError(input)` | A seller's costs and net proceeds. |
+| `SELLING_COST_FEES`, `SELLING_COSTS_LABELS`, `SELLING_COSTS_LIMITS`, `VAT_RATE` | The named fees, labels, form bounds and the VAT rate. |
+| `getCapitalGainsSummary(input)`, `calculateCapitalGains(input)`, `capitalGainsInputError(input)` | Capital gains tax on a residential property sale. |
+| `capitalGainsReportBy(completionDate)` | The last day to report and pay, as `YYYY-MM-DD`. |
+| `CAPITAL_GAINS_RATES`, `CAPITAL_GAINS_TAX_YEARS`, `CAPITAL_GAINS_NOTICE` | Rates and allowances by tax year, the years as options, and the guide-only notice. |
+| `getRentConversionSummary(input)`, `convertRent(input)`, `rentConverterInputError(input)` | A rent per week, month, year and day, and per person. |
+| `getTenantAffordabilitySummary(input)`, `calculateTenantAffordability(input)`, `tenantAffordabilityInputError(input)` | Income needed for a rent, and whether a given income passes. |
+| `maxRentForIncome({ income, multiple? })` | The most rent an income supports, rounded down. |
+| `TENANT_AFFORDABILITY_DEFAULTS`, `TENANT_AFFORDABILITY_NOTICE` | The 30 and 36 times multiples, and the notice. |
+| `getLandlordIncomeSummary(input)`, `calculateLandlordIncome(input)`, `landlordIncomeInputError(input)` | A landlord's net income after tax. |
+| `propertyIncomeTax(input, year)`, `incomeTax(otherIncome, profit, year)`, `personalAllowance(totalIncome, year)` | The income tax working on its own. |
+| `LANDLORD_TAX_YEARS`, `LANDLORD_TAX_YEAR_OPTIONS`, `CURRENT_LANDLORD_TAX_YEAR`, `LANDLORD_COSTS`, `LANDLORD_INCOME_NOTICE` | Tax figures by year with sources, the named costs, and the notice. |
+
+</details>
+
+<details>
 <summary><b>PDF</b></summary>
 
 | Export | Description |
@@ -1385,10 +1613,16 @@ Types: `Country`, `PropertyTaxInput`, `PropertyTaxEstimate`, `PropertyTaxSupplem
 | `stampDutyPdf(estimate, options?)` | A stamp duty estimate as PDF bytes. |
 | `mortgagePdf(input, options?)`, `rentalYieldPdf(input, options?)` | The same for a mortgage or a rental yield. Reject with a `RangeError` when the input can't be calculated. |
 | `leaseStampDutyPdf(lease, options?)` | A new-lease calculation, with both breakdowns and its notes. |
+| `propertyTaxPdf(estimate, options?)`, `companyStampDutyPdf(result, options?)` | Scotland, Wales or any UK country, and company purchases. |
+| `affordabilityPdf`, `buyToLetPdf`, `overpaymentPdf`, `remortgagePdf`, `buyingCostsPdf`, `pricePerAreaPdf`, `tenantDepositPdf`, `sellingCostsPdf`, `capitalGainsPdf`, `rentConverterPdf`, `tenantAffordabilityPdf`, `landlordIncomePdf` | `(input, options?)` for each of the other calculators. Reject with a `RangeError` when the input can't be calculated. |
+| `propertyTaxReport`, `companyStampDutyReport`, `affordabilityReport`, `buyToLetReport`, `overpaymentReport`, `remortgageReport`, `buyingCostsReport`, `pricePerAreaReport`, `tenantDepositReport`, `sellingCostsReport`, `capitalGainsReport`, `rentConverterReport`, `tenantAffordabilityReport`, `landlordIncomeReport` | Those reports as data. |
+| `rowsReport(title, rows, extra?)` | A report from any summary's labelled rows. |
+| `PDF_IMAGE_MAX_SIDE`, `PDF_IMAGE_MAX_PIXELS`, `PDF_IMAGE_MAX_BYTES` | The largest logo accepted: 4,096 px a side, 16 megapixels, 5 MB. |
 | `createPdf(report, options?)` | Any report of your own in the same layout and brand. |
 | `stampDutyReport`, `mortgageReport`, `rentalYieldReport`, `leaseStampDutyReport` | The built-in reports as data, to adjust before printing. |
 | `pdfImage(source)` | Prepares a JPEG or PNG logo once, for reuse across documents. |
 | `downloadPdf(bytes, filename?)` | Saves the bytes as a file in a browser. |
+| `pdfBase64(bytes)` | The file as base64 text, to save or share from [React Native](#in-react-native). |
 | `renderPdf(report, brand)` | The synchronous core, for a logo already prepared. |
 | `DEFAULT_NOTICE`, `formatPdfDate` | The default small print, and the date format used. |
 
@@ -1402,11 +1636,10 @@ Types: `PdfOptions`, `PdfBrand`, `PdfReport`, `PdfTable`, `PdfImage`, `PdfImageS
 
 | Export | Description |
 | --- | --- |
-| `StampDutyCalculator`, `MortgageCalculator`, `RentalYieldCalculator`, `DeskCalculator` | The components. See [props](#props). |
+| `StampDutyCalculator`, `MortgageCalculator`, `RentalYieldCalculator`, `DeskCalculator`, `PropertyTaxCalculator`, `CompanyStampDutyCalculator`, `AffordabilityCalculator`, `OverpaymentCalculator`, `RemortgageCalculator`, `BuyingCostsCalculator`, `BuyToLetCalculator`, `PricePerAreaCalculator`, `TenantDepositCalculator`, `SellingCostsCalculator`, `CapitalGainsCalculator`, `RentConverterCalculator`, `TenantAffordabilityCalculator`, `LandlordIncomeCalculator` | The components. See [props](#props). |
 | `STYLES` | The default stylesheet as a string, the same content as `property-calculators/styles.css`. |
 
-Types: `StampDutyCalculatorProps`, `MortgageCalculatorProps`, `RentalYieldCalculatorProps`,
-`DeskCalculatorProps`, `BaseProps`, `ClassNames`, `PdfProp`, `Slot`.
+Types: a `…Props` type for each component, plus `BaseProps`, `ClassNames`, `PdfProp`, `Slot`.
 
 </details>
 
@@ -1435,6 +1668,10 @@ a PDF, a mobile app). Both give the same numbers, because the components are bui
 
 **Do I need React?**
 Only for `property-calculators/react`. Everything else has no dependencies at all.
+
+**Does it work in React Native?**
+Yes: every calculator and the PDFs, on Hermes, with no polyfills. The ready-made components render
+HTML, so a native app uses the headless functions instead. See [In React Native](#in-react-native).
 
 **Does it call any API?**
 No. Everything is computed locally and synchronously. The only outside data it ever uses is the

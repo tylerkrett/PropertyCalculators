@@ -18,7 +18,18 @@ import {
     type PropertyType,
 } from '../stamp-duty/estimate';
 import { STAMP_DUTY_COLUMNS, STAMP_DUTY_LABELS } from '../stamp-duty/labels';
-import { amountText, CheckField, Hints, MoneyField, parseAmount, SelectField } from './fields';
+import {
+    amountText,
+    BandTable,
+    CheckField,
+    Hints,
+    MoneyField,
+    oneOf,
+    parseAmount,
+    SelectField,
+    Status,
+    SummaryItems,
+} from './fields';
 import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
 export type PropertyTaxCalculatorProps = BaseProps & {
@@ -80,12 +91,15 @@ export function PropertyTaxCalculator({
     ...rest
 }: PropertyTaxCalculatorProps) {
     const id = useId();
+    const statusId = `${id}status`;
     const cx = slots(classNames, !unstyled && 'pc-styled', 'pc-property-tax', className);
-    const [country, setCountry] = useState<Country>(defaultCountry);
+    const [country, setCountry] = useState<Country>(() => oneOf(COUNTRIES, defaultCountry, DEFAULT_COUNTRY));
     const [priceText, setPriceText] = useState(amountText(defaultPrice));
-    const [buyer, setBuyer] = useState<BuyerType>(defaultBuyer);
-    const [propertyType, setPropertyType] = useState<PropertyType>(defaultPropertyType);
-    const [nonUkResidentTicked, setNonUkResident] = useState(defaultNonUkResident);
+    const [buyer, setBuyer] = useState<BuyerType>(() => oneOf(BUYER_TYPES, defaultBuyer, DEFAULT_BUYER_TYPE));
+    const [propertyType, setPropertyType] = useState<PropertyType>(() =>
+        oneOf(PROPERTY_TYPES, defaultPropertyType, DEFAULT_PROPERTY_TYPE),
+    );
+    const [nonUkResidentTicked, setNonUkResident] = useState(Boolean(defaultNonUkResident));
 
     // Only SDLT charges non-UK residents more, so the box is hidden, and ignored, elsewhere.
     const asksResidence = COUNTRIES.find((option) => option.value === country)?.tax === 'SDLT';
@@ -96,6 +110,12 @@ export function PropertyTaxCalculator({
         () => (valid ? calculatePropertyTax({ country, price, buyer, propertyType, nonUkResident }) : null),
         [valid, country, price, buyer, propertyType, nonUkResident],
     );
+    const summary = estimate && summaryOf(estimate);
+    const prompt = estimate
+        ? null
+        : price > MAX_PRICE
+          ? 'Enter a lower price.'
+          : 'Enter a price to see the tax to pay.';
 
     useEffect(() => {
         onChange?.(estimate);
@@ -121,6 +141,8 @@ export function PropertyTaxCalculator({
                     label={STAMP_DUTY_LABELS.price}
                     value={priceText}
                     onChange={setPriceText}
+                    invalid={!valid && priceText.trim() !== ''}
+                    describedBy={prompt ? statusId : undefined}
                 />
                 <SelectField
                     cx={cx}
@@ -149,66 +171,33 @@ export function PropertyTaxCalculator({
                 )}
             </div>
 
-            {estimate ? (
-                <div aria-live="polite">
-                    <dl className={cx('summary')}>
-                        {summaryOf(estimate).map((item) => (
-                            <div key={item.key} className={cx('summaryItem')} data-key={item.key}>
-                                <dt>{item.label}</dt>
-                                <dd>{item.formatted}</dd>
-                            </div>
-                        ))}
-                    </dl>
+            <Status cx={cx} id={statusId} error={prompt} headline={summary?.find((item) => item.key === 'total')} />
 
+            {estimate && summary && (
+                <div>
+                    <SummaryItems cx={cx} items={summary} />
                     {showBreakdown && (
-                        <table className={cx('table')}>
-                            <caption className={cx('heading')}>
-                                {PROPERTY_TAX_NAMES[estimate.tax]}: {STAMP_DUTY_LABELS.breakdown.toLowerCase()}
-                            </caption>
-                            <thead>
-                                <tr>
-                                    {STAMP_DUTY_COLUMNS.map((column) => (
-                                        <th key={column.key} scope="col" data-align={column.align}>
-                                            {column.label}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {estimate.bands.map((band) => (
-                                    <tr key={band.from}>
-                                        {STAMP_DUTY_COLUMNS.map((column) => (
-                                            <td key={column.key} data-align={column.align}>
-                                                {band.formatted[column.key]}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td data-align="left">Total</td>
-                                    <td data-align="right" />
-                                    <td data-align="right">{estimate.formatted.price}</td>
-                                    <td data-align="right">{estimate.formatted.bandTax}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                        <BandTable
+                            cx={cx}
+                            caption={`${PROPERTY_TAX_NAMES[estimate.tax]}: ${STAMP_DUTY_LABELS.breakdown.toLowerCase()}`}
+                            columns={STAMP_DUTY_COLUMNS}
+                            rows={estimate.bands.map((band) => ({ key: band.from, ...band.formatted }))}
+                            totals={{
+                                range: 'Total',
+                                rate: '',
+                                taxable: estimate.formatted.price,
+                                tax: estimate.formatted.bandTax,
+                            }}
+                        />
                     )}
-
                     <Hints cx={cx} lines={estimate.notes} />
                     <PdfButton
                         pdf={pdf}
                         filename={`${estimate.tax.toLowerCase()}-${estimate.price}.pdf`}
-                        className={cx('download')}
+                        cx={cx}
                         make={(api, options) => api.propertyTaxPdf(estimate, options)}
                     />
                 </div>
-            ) : (
-                <Hints
-                    cx={cx}
-                    lines={[price > MAX_PRICE ? 'Enter a lower price.' : 'Enter a price to see the tax to pay.']}
-                />
             )}
         </div>
     );

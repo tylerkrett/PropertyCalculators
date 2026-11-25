@@ -1,146 +1,120 @@
+import { base64Decode, utf8Encode } from '../bytes';
+import { jpeg } from './jpeg';
+import { png } from './png';
 import type { PdfImage } from './writer';
 
 /*
- * Turns a logo file into what a PDF stores. A JPEG goes in untouched. A PNG is unpacked into
- * colour and transparency, using the inflate and deflate built into browsers and Node 18+
- * (`DecompressionStream`), which is why this is async and still pulls in no library.
+ * Turns a logo file into what a PDF stores. A JPEG goes in untouched (`jpeg.ts`); a PNG is
+ * unpacked into colour and transparency (`png.ts`), which is why this is async. A logo given as
+ * a URL is downloaded here, up to a fixed size.
+ *
+ * React Native's `fetch` has no streaming body, its `Blob` has had no `arrayBuffer()` and it may
+ * refuse a `data:` URL, so each of those has a second route here that needs none of them.
  */
+
+export { PDF_IMAGE_MAX_PIXELS, PDF_IMAGE_MAX_SIDE } from './png';
 
 /** Where a logo can come from: its bytes, a `File` or `Blob`, or a URL (a `data:` URL included). */
 export type PdfImageSource = Uint8Array | ArrayBuffer | Blob | string;
 
+/** The most a logo given as a URL may weigh once downloaded: 5 MB. */
+export const PDF_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+/** A URL as it is safe to show in an error: no query string or fragment, and no `data:` payload. */
+const describe = (url: string) => (/^data:/i.test(url) ? 'a data: URL' : url.split(/[?#]/)[0]!.slice(0, 80));
+
+/** The bytes a `data:` URL holds, base64 or percent-encoded, or `null` when it is not one that can be read. */
+function dataUrlBytes(url: string): Uint8Array | null {
+    const [, base64, payload] = /^data:[^,]*?(;base64)?,(.*)$/is.exec(url) ?? [];
+    if (payload === undefined) return null;
+    try {
+        return base64 ? base64Decode(decodeURIComponent(payload)) : utf8Encode(decodeURIComponent(payload));
+    } catch {
+        return null;
+    }
+}
+
+/** A `Blob`'s bytes. Without `arrayBuffer()` it is read as a `data:` URL, which every engine can do. */
+async function blobBytes(blob: Blob): Promise<Uint8Array> {
+    if (typeof blob.arrayBuffer === 'function') return new Uint8Array(await blob.arrayBuffer());
+    const url = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error ?? new Error('Could not read the image.'));
+        reader.readAsDataURL(blob);
+    });
+    const bytes = dataUrlBytes(url);
+    if (!bytes) throw new Error('Could not read the image.');
+    return bytes;
+}
+
+/** Downloads a logo, giving up as soon as it is known to be over the size limit. */
+async function download(url: string): Promise<Uint8Array> {
+    const tooLarge = () =>
+        new RangeError(`The image is larger than ${PDF_IMAGE_MAX_BYTES / 1024 / 1024} MB: ${describe(url)}`);
+    let response: Response;
+    try {
+        response = await fetch(url);
+    } catch (error) {
+        // Not every `fetch` takes a `data:` URL, and that one needs no network to read.
+        const bytes = dataUrlBytes(url);
+        if (!bytes) throw error;
+        if (bytes.length > PDF_IMAGE_MAX_BYTES) throw tooLarge();
+        return bytes;
+    }
+    if (!response.ok) throw new Error(`Could not load the image (${response.status}): ${describe(url)}`);
+    if (Number(response.headers.get('content-length')) > PDF_IMAGE_MAX_BYTES) {
+        await response.body?.cancel().catch(() => undefined);
+        throw tooLarge();
+    }
+    // The declared length can be missing or wrong, so the body is counted as it arrives.
+    const reader = response.body?.getReader();
+    if (!reader) {
+        // No stream to count, as in React Native: take the body whole, by whichever way works.
+        const whole = typeof response.blob === 'function' && typeof Blob === 'function';
+        const bytes = whole ? await blobBytes(await response.blob()) : new Uint8Array(await response.arrayBuffer());
+        if (bytes.length > PDF_IMAGE_MAX_BYTES) throw tooLarge();
+        return bytes;
+    }
+    const parts: Uint8Array[] = [];
+    let length = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        length += value.length;
+        if (length > PDF_IMAGE_MAX_BYTES) {
+            await reader.cancel().catch(() => undefined);
+            throw tooLarge();
+        }
+        parts.push(value);
+    }
+    const bytes = new Uint8Array(length);
+    parts.reduce((at, part) => (bytes.set(part, at), at + part.length), 0);
+    return bytes;
+}
+
 async function toBytes(source: PdfImageSource): Promise<Uint8Array> {
     if (source instanceof Uint8Array) return source;
     if (source instanceof ArrayBuffer) return new Uint8Array(source);
-    if (typeof source !== 'string') return new Uint8Array(await source.arrayBuffer());
-    const response = await fetch(source);
-    if (!response.ok) throw new Error(`Could not load the image (${response.status}): ${source.slice(0, 80)}`);
-    return new Uint8Array(await response.arrayBuffer());
-}
-
-const through = async (data: Uint8Array, stream: { readable: ReadableStream; writable: WritableStream }) =>
-    new Uint8Array(await new Response(new Blob([data as BlobPart]).stream().pipeThrough(stream)).arrayBuffer());
-const inflate = (data: Uint8Array) => through(data, new DecompressionStream('deflate'));
-const deflate = (data: Uint8Array) => through(data, new CompressionStream('deflate'));
-
-const u16 = (bytes: Uint8Array, at: number) => (bytes[at]! << 8) | bytes[at + 1]!;
-const u32 = (bytes: Uint8Array, at: number) => ((bytes[at]! << 24) | (bytes[at + 1]! << 16) | u16(bytes, at + 2)) >>> 0;
-
-/** A JPEG is stored as it is: only its size and colour model are read, from the frame header. */
-function jpeg(bytes: Uint8Array): PdfImage {
-    for (let at = 2; at + 9 < bytes.length;) {
-        if (bytes[at] !== 0xff) break;
-        const marker = bytes[at + 1]!;
-        // Start-of-frame markers, less the three in that range that are something else.
-        if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-            const components = bytes[at + 9]!;
-            return {
-                width: u16(bytes, at + 7),
-                height: u16(bytes, at + 5),
-                data: bytes,
-                filter: 'DCTDecode',
-                colourSpace: components === 1 ? 'DeviceGray' : components === 4 ? 'DeviceCMYK' : 'DeviceRGB',
-            };
-        }
-        at += 2 + u16(bytes, at + 2);
-    }
-    throw new Error('That JPEG has no readable size.');
-}
-
-/** Undoes PNG's per-row filters in place and returns the rows without their filter bytes. */
-function unfilter(raw: Uint8Array, stride: number, bpp: number, height: number): Uint8Array {
-    const out = new Uint8Array(stride * height);
-    for (let row = 0; row < height; row++) {
-        const type = raw[row * (stride + 1)];
-        const from = row * (stride + 1) + 1;
-        const to = row * stride;
-        for (let i = 0; i < stride; i++) {
-            const left = i >= bpp ? out[to + i - bpp]! : 0;
-            const up = row ? out[to + i - stride]! : 0;
-            const corner = row && i >= bpp ? out[to + i - stride - bpp]! : 0;
-            let predicted = 0;
-            if (type === 1) predicted = left;
-            else if (type === 2) predicted = up;
-            else if (type === 3) predicted = (left + up) >> 1;
-            else if (type === 4) {
-                const [a, b, c] = [Math.abs(up - corner), Math.abs(left - corner), Math.abs(left + up - 2 * corner)];
-                predicted = a <= b && a <= c ? left : b <= c ? up : corner;
-            }
-            out[to + i] = (raw[from + i]! + predicted) & 0xff;
-        }
-    }
-    return out;
-}
-
-async function png(bytes: Uint8Array): Promise<PdfImage> {
-    let header: { width: number; height: number; depth: number; type: number } | undefined;
-    let palette: Uint8Array | undefined;
-    let transparency: Uint8Array | undefined;
-    const data: Uint8Array[] = [];
-    for (let at = 8; at + 8 <= bytes.length;) {
-        const size = u32(bytes, at);
-        const name = String.fromCharCode(...bytes.subarray(at + 4, at + 8));
-        const body = bytes.subarray(at + 8, at + 8 + size);
-        if (name === 'IHDR') {
-            header = { width: u32(body, 0), height: u32(body, 4), depth: body[8]!, type: body[9]! };
-            if (body[12]) throw new Error('Interlaced PNGs are not supported: save the logo without interlacing.');
-        } else if (name === 'PLTE') palette = body;
-        else if (name === 'tRNS') transparency = body;
-        else if (name === 'IDAT') data.push(body);
-        at += size + 12;
-    }
-    if (!header || !data.length) throw new Error('That PNG is incomplete.');
-    const { width, height, depth, type } = header;
-    if (depth === 16 || (depth < 8 && type !== 3))
-        throw new Error('Only 8-bit PNGs are supported: save the logo as an 8-bit PNG.');
-
-    const joined = new Uint8Array(data.reduce((sum, part) => sum + part.length, 0));
-    data.reduce((at, part) => (joined.set(part, at), at + part.length), 0);
-    // Samples per pixel: grey 1, RGB 3, palette index 1, grey + alpha 2, RGBA 4.
-    const channels = [1, 0, 3, 1, 2, 0, 4][type] ?? 0;
-    if (!channels) throw new Error('That PNG has an unknown colour type.');
-    const stride = Math.ceil((width * channels * depth) / 8);
-    const rows = unfilter(await inflate(joined), stride, Math.max(1, (channels * depth) >> 3), height);
-
-    const colour = new Uint8Array(width * height * 3);
-    const alpha = new Uint8Array(width * height).fill(255);
-    for (let y = 0, pixel = 0; y < height; y++) {
-        for (let x = 0; x < width; x++, pixel++) {
-            const at = y * stride + x * channels;
-            let r: number, g: number, b: number;
-            if (type === 3) {
-                // A palette index, packed `depth` bits at a time from the top of each byte.
-                const bit = x * depth;
-                const index = (rows[y * stride + (bit >> 3)]! >> (8 - depth - (bit & 7))) & ((1 << depth) - 1);
-                [r, g, b] = [palette?.[index * 3] ?? 0, palette?.[index * 3 + 1] ?? 0, palette?.[index * 3 + 2] ?? 0];
-                alpha[pixel] = transparency?.[index] ?? 255;
-            } else if (channels <= 2) {
-                r = g = b = rows[at]!;
-                if (channels === 2) alpha[pixel] = rows[at + 1]!;
-            } else {
-                [r, g, b] = [rows[at]!, rows[at + 1]!, rows[at + 2]!];
-                if (channels === 4) alpha[pixel] = rows[at + 3]!;
-            }
-            colour.set([r, g, b], pixel * 3);
-        }
-    }
-    return {
-        width,
-        height,
-        data: await deflate(colour),
-        filter: 'FlateDecode',
-        colourSpace: 'DeviceRGB',
-        ...(alpha.some((value) => value < 255) && { alpha: await deflate(alpha) }),
-    };
+    if (typeof source === 'string') return download(source);
+    return blobBytes(source);
 }
 
 /**
  * Reads a JPEG or PNG logo into the form the PDF functions embed. They call this for you; call
  * it yourself to prepare a logo once and reuse it across many documents.
+ *
+ * A PNG may be up to `PDF_IMAGE_MAX_SIDE` pixels a side and `PDF_IMAGE_MAX_PIXELS` in all, and a
+ * logo given as a URL up to `PDF_IMAGE_MAX_BYTES`; a file that is larger, damaged or of a kind a
+ * PDF cannot hold is rejected with a `RangeError`.
+ *
+ * **On a server, never pass a URL that came from a user.** A string is fetched from wherever it
+ * points, which would let anyone make your server request addresses inside your network. Fetch
+ * logos yourself from places you trust and pass the bytes.
  */
 export async function pdfImage(source: PdfImageSource): Promise<PdfImage> {
     const bytes = await toBytes(source);
     if (bytes[0] === 0xff && bytes[1] === 0xd8) return jpeg(bytes);
-    if (u32(bytes, 0) === 0x89504e47) return png(bytes);
-    throw new Error('The logo must be a JPEG or a PNG.');
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return png(bytes);
+    throw new RangeError('The logo must be a JPEG or a PNG.');
 }

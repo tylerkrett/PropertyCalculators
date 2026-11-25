@@ -13,7 +13,8 @@
         "uk",
         "headless",
         "pdf",
-        "react"
+        "react",
+        "react-native"
     ],
     "license": "MIT",
     "author": "Tyler Krett",
@@ -148,6 +149,56 @@
             "require": {
                 "types": "./dist/overpayment/index.d.cts",
                 "default": "./dist/overpayment/index.cjs"
+            }
+        },
+        "./selling-costs": {
+            "import": {
+                "types": "./dist/selling-costs/index.d.ts",
+                "default": "./dist/selling-costs/index.js"
+            },
+            "require": {
+                "types": "./dist/selling-costs/index.d.cts",
+                "default": "./dist/selling-costs/index.cjs"
+            }
+        },
+        "./capital-gains": {
+            "import": {
+                "types": "./dist/capital-gains/index.d.ts",
+                "default": "./dist/capital-gains/index.js"
+            },
+            "require": {
+                "types": "./dist/capital-gains/index.d.cts",
+                "default": "./dist/capital-gains/index.cjs"
+            }
+        },
+        "./rent-converter": {
+            "import": {
+                "types": "./dist/rent-converter/index.d.ts",
+                "default": "./dist/rent-converter/index.js"
+            },
+            "require": {
+                "types": "./dist/rent-converter/index.d.cts",
+                "default": "./dist/rent-converter/index.cjs"
+            }
+        },
+        "./tenant-affordability": {
+            "import": {
+                "types": "./dist/tenant-affordability/index.d.ts",
+                "default": "./dist/tenant-affordability/index.js"
+            },
+            "require": {
+                "types": "./dist/tenant-affordability/index.d.cts",
+                "default": "./dist/tenant-affordability/index.cjs"
+            }
+        },
+        "./landlord-income": {
+            "import": {
+                "types": "./dist/landlord-income/index.d.ts",
+                "default": "./dist/landlord-income/index.js"
+            },
+            "require": {
+                "types": "./dist/landlord-income/index.d.cts",
+                "default": "./dist/landlord-income/index.cjs"
             }
         },
         "./pdf": {

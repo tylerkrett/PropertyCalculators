@@ -8,13 +8,24 @@ import {
 } from '../stamp-duty/company';
 import { MAX_PRICE } from '../stamp-duty/estimate';
 import { getStampDutyTable, STAMP_DUTY_LABELS } from '../stamp-duty/labels';
-import { amountText, CheckField, Hints, MoneyField, parseAmount, SelectField } from './fields';
+import {
+    amountText,
+    BandTable,
+    CheckField,
+    Hints,
+    MoneyField,
+    oneOf,
+    parseAmount,
+    SelectField,
+    Status,
+    SummaryItems,
+} from './fields';
 import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
 export type CompanyStampDutyCalculatorProps = BaseProps & {
     /** Price to start with, in pounds. */
     defaultPrice?: number;
-    /** A relief from the flat 17% rate to start with. Defaults to `null`: no relief. */
+    /** A relief from the flat 17% rate to start with. Defaults to `null`: no relief, as does an unknown value. */
     defaultRelief?: CompanyRelief | null;
     /** The company is not UK resident for this purchase. Defaults to `false`. */
     defaultNonUkResident?: boolean;
@@ -52,10 +63,13 @@ export function CompanyStampDutyCalculator({
     ...rest
 }: CompanyStampDutyCalculatorProps) {
     const id = useId();
+    const statusId = `${id}status`;
     const cx = slots(classNames, !unstyled && 'pc-styled', 'pc-company-stamp-duty', className);
     const [priceText, setPriceText] = useState(amountText(defaultPrice));
-    const [relief, setRelief] = useState<CompanyRelief | typeof NO_RELIEF>(defaultRelief ?? NO_RELIEF);
-    const [nonUkResident, setNonUkResident] = useState(defaultNonUkResident);
+    const [relief, setRelief] = useState<CompanyRelief | typeof NO_RELIEF>(() =>
+        oneOf(RELIEF_OPTIONS, defaultRelief, NO_RELIEF),
+    );
+    const [nonUkResident, setNonUkResident] = useState(Boolean(defaultNonUkResident));
 
     const price = parseAmount(priceText, Number.NaN);
     const valid = price > 0 && price <= MAX_PRICE;
@@ -64,6 +78,7 @@ export function CompanyStampDutyCalculator({
         [valid, price, relief, nonUkResident],
     );
     const table = result && getStampDutyTable(result);
+    const prompt = table ? null : price > MAX_PRICE ? 'Enter a lower price.' : 'Enter a price to see the stamp duty.';
 
     useEffect(() => {
         onChange?.(result);
@@ -81,6 +96,8 @@ export function CompanyStampDutyCalculator({
                     label={STAMP_DUTY_LABELS.price}
                     value={priceText}
                     onChange={setPriceText}
+                    invalid={!valid && priceText.trim() !== ''}
+                    describedBy={prompt ? statusId : undefined}
                 />
                 <SelectField
                     cx={cx}
@@ -99,65 +116,28 @@ export function CompanyStampDutyCalculator({
                 />
             </div>
 
-            {table ? (
-                <div aria-live="polite">
-                    <dl className={cx('summary')}>
-                        {table.summary.map((item) => (
-                            <div key={item.key} className={cx('summaryItem')} data-key={item.key}>
-                                <dt>{item.label}</dt>
-                                <dd>{item.formatted}</dd>
-                            </div>
-                        ))}
-                    </dl>
+            <Status cx={cx} id={statusId} error={prompt} headline={table?.summary[1]} />
 
+            {table && (
+                <div>
+                    <SummaryItems cx={cx} items={table.summary} />
                     {showBreakdown && (
-                        <table className={cx('table')}>
-                            <caption className={cx('heading')}>{STAMP_DUTY_LABELS.breakdown}</caption>
-                            <thead>
-                                <tr>
-                                    {table.columns.map((column) => (
-                                        <th key={column.key} scope="col" data-align={column.align}>
-                                            {column.label}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {table.rows.map((row) => (
-                                    <tr key={row.key}>
-                                        {table.columns.map((column) => (
-                                            <td key={column.key} data-align={column.align}>
-                                                {row[column.key]}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    {table.columns.map((column) => (
-                                        <td key={column.key} data-align={column.align}>
-                                            {table.totals[column.key]}
-                                        </td>
-                                    ))}
-                                </tr>
-                            </tfoot>
-                        </table>
+                        <BandTable
+                            cx={cx}
+                            caption={STAMP_DUTY_LABELS.breakdown}
+                            columns={table.columns}
+                            rows={table.rows}
+                            totals={table.totals}
+                        />
                     )}
-
                     <Hints cx={cx} lines={result.notes} />
                     <PdfButton
                         pdf={pdf}
                         filename={`company-stamp-duty-${result.price}.pdf`}
-                        className={cx('download')}
+                        cx={cx}
                         make={(api, options) => api.companyStampDutyPdf(result, options)}
                     />
                 </div>
-            ) : (
-                <Hints
-                    cx={cx}
-                    lines={[price > MAX_PRICE ? 'Enter a lower price.' : 'Enter a price to see the stamp duty.']}
-                />
             )}
         </div>
     );

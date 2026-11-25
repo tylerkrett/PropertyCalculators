@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { createCalculator, operation } from '../src/calculator/index';
+import { BUYER_TYPES } from '../src/stamp-duty/estimate';
 import {
     DeskCalculator,
     MortgageCalculator,
@@ -61,9 +62,18 @@ describe('StampDutyCalculator', () => {
 
     it('labels every control', () => {
         const markup = html(<StampDutyCalculator />);
-        const id = /<label class="pc-label" for="([^"]+)"/.exec(markup)?.[1];
-        expect(id).toBeTruthy();
-        expect(markup).toContain(`<input id="${id}"`);
+        const controls = [...markup.matchAll(/<(?:input|select)\b[^>]*>/g)].map((match) => match[0]);
+        // The price, three buyer radios and the residency box.
+        expect(controls).toHaveLength(2 + BUYER_TYPES.length);
+        for (const control of controls) {
+            const id = /\bid="([^"]+)"/.exec(control)?.[1];
+            // Each control is the target of a label, or sits inside one (the radios).
+            if (id) expect(markup, control).toContain(`for="${id}"`);
+            else
+                expect(markup, control).toMatch(
+                    new RegExp(`<label class="pc-option"[^>]*>${control}<span>[^<]+</span>`),
+                );
+        }
         expect(markup).toContain('<legend class="pc-label">Buyer</legend>');
     });
 });

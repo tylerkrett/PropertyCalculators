@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useState } from 'react';
 
 import { MORTGAGE_DEFAULTS } from '../mortgage/index';
 import { getOverpaymentSummary, OVERPAYMENT_LIMITS, type OverpaymentSummary } from '../overpayment/index';
-import { amountText, Hints, MoneyField, NumberField, parseAmount, parseNumber, ResultRows } from './fields';
+import { amountText, MoneyField, NumberField, parseAmount, parseNumber, ResultRows, Status } from './fields';
 import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
 export type OverpaymentCalculatorProps = BaseProps & {
@@ -39,6 +39,7 @@ export function OverpaymentCalculator({
     ...rest
 }: OverpaymentCalculatorProps) {
     const id = useId();
+    const statusId = `${id}status`;
     const cx = slots(classNames, !unstyled && 'pc-styled', 'pc-overpayment', className);
     const [balanceText, setBalanceText] = useState(amountText(defaultBalance));
     const [rate, setRate] = useState(String(defaultRate));
@@ -46,15 +47,15 @@ export function OverpaymentCalculator({
     const [monthlyText, setMonthlyText] = useState(amountText(defaultMonthlyOverpayment));
     const [lumpSumText, setLumpSumText] = useState(amountText(defaultLumpSum));
 
+    // Memoised on the numbers, not the text, so retyping 200000 as 200,000 reports nothing new.
+    const balance = parseAmount(balanceText, Number.NaN);
+    const rateValue = parseNumber(rate, Number.NaN);
+    const termYears = parseNumber(term, Number.NaN);
+    const monthlyOverpayment = parseAmount(monthlyText, 0);
+    const lumpSum = parseAmount(lumpSumText, 0);
     const input = useMemo(
-        () => ({
-            balance: parseAmount(balanceText, Number.NaN),
-            rate: parseNumber(rate, Number.NaN),
-            termYears: parseNumber(term, Number.NaN),
-            monthlyOverpayment: parseAmount(monthlyText, 0),
-            lumpSum: parseAmount(lumpSumText, 0),
-        }),
-        [balanceText, rate, term, monthlyText, lumpSumText],
+        () => ({ balance, rate: rateValue, termYears, monthlyOverpayment, lumpSum }),
+        [balance, rateValue, termYears, monthlyOverpayment, lumpSum],
     );
     const { summary, error } = useMemo(() => getOverpaymentSummary(input), [input]);
 
@@ -67,7 +68,7 @@ export function OverpaymentCalculator({
         <div {...rest} data-theme={theme} className={cx('root')}>
             <Styles unstyled={unstyled} inlineStyles={inlineStyles} />
 
-            <div className={cx('form')} data-layout="grid">
+            <div className={cx('form')} data-layout="grid" aria-describedby={error ? statusId : undefined}>
                 <MoneyField
                     cx={cx}
                     id={`${id}balance`}
@@ -110,18 +111,18 @@ export function OverpaymentCalculator({
                 />
             </div>
 
-            {summary ? (
+            <Status cx={cx} id={statusId} error={error} headline={summary?.rows[0]} />
+
+            {summary && (
                 <>
                     <ResultRows cx={cx} rows={summary.rows} />
                     <PdfButton
                         pdf={pdf}
                         filename={`overpayment-${input.balance}.pdf`}
-                        className={cx('download')}
+                        cx={cx}
                         make={(api, options) => api.overpaymentPdf(input, options)}
                     />
                 </>
-            ) : (
-                <Hints cx={cx} lines={[error]} />
             )}
         </div>
     );

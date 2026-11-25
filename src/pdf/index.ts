@@ -20,14 +20,17 @@ import type { PdfReport } from './layout';
  *   downloadPdf(pdf, 'stamp-duty.pdf');
  */
 
-export { pdfImage, type PdfImageSource } from './image';
+export { PDF_IMAGE_MAX_BYTES, PDF_IMAGE_MAX_PIXELS, PDF_IMAGE_MAX_SIDE, pdfImage, type PdfImageSource } from './image';
 export { DEFAULT_NOTICE, formatPdfDate, type PdfBrand, type PdfReport, type PdfTable, renderPdf } from './layout';
 export type { PdfImage } from './writer';
-export { createPdf, downloadPdf, type PdfOptions, rowsReport } from './create';
+export { createPdf, downloadPdf, pdfBase64, type PdfOptions, rowsReport } from './create';
 export * from './reports/property-tax';
 export * from './reports/borrowing';
 export * from './reports/mortgage-extras';
 export * from './reports/lettings';
+export * from './reports/sales';
+export * from './reports/rentals';
+export * from './reports/landlord';
 
 const headers = STAMP_DUTY_COLUMNS.map((column) => column.label);
 type BandRow = Record<(typeof STAMP_DUTY_COLUMNS)[number]['key'], string>;

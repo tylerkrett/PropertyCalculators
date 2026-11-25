@@ -1,24 +1,59 @@
+import { utf8Encode } from '../bytes';
+import { infoString, literal, textWidth } from './text';
+
 /*
- * The smallest PDF writer that will do: one A4 page of text, lines and one image, in the two
+ * The smallest PDF writer that will do: A4 pages of text, lines and one image, in the two
  * Helvetica faces every PDF reader has built in. No font is embedded and nothing is imported, so
  * a finished estimate is a few kilobytes and this file is most of the cost of the feature.
+ *
+ * Because no font is embedded, printed text is limited to Latin-1 and the few extra characters
+ * of WinAnsi: see `text.ts` for what happens to the rest.
  */
+
+export { literal, textWidth, wrapText } from './text';
 
 export type Rgb = readonly [number, number, number];
 
 /** An image ready to embed. Make one with `pdfImage`. */
 export interface PdfImage {
+    /** Size in pixels: whole numbers above zero. */
     width: number;
     height: number;
     /** The pixel data as the PDF stores it: a whole JPEG file, or deflated samples. */
     data: Uint8Array;
     filter: 'DCTDecode' | 'FlateDecode';
     colourSpace: 'DeviceRGB' | 'DeviceGray' | 'DeviceCMYK';
+    /** Bits per colour sample: 1, 2, 4, 8 or 16. Defaults to 8. */
+    bitsPerComponent?: number;
     /** Deflated 8-bit transparency, one sample per pixel, when the image has any. */
     alpha?: Uint8Array;
 }
 
 export const PAGE = { width: 595.28, height: 841.89, margin: 56 } as const;
+
+const FILTERS: readonly unknown[] = ['DCTDecode', 'FlateDecode'];
+const COLOUR_SPACES: readonly unknown[] = ['DeviceRGB', 'DeviceGray', 'DeviceCMYK'];
+const DEPTHS: readonly unknown[] = [1, 2, 4, 8, 16];
+const isSize = (value: unknown) => Number.isInteger(value) && (value as number) > 0;
+
+/**
+ * Throws a `RangeError` unless `image` is safe to write into a PDF. Its fields go into the file
+ * as they are, so each one is checked against what a PDF allows instead of being trusted.
+ */
+export function assertPdfImage(image: PdfImage): void {
+    const fail = (problem: string) => {
+        throw new RangeError(`The logo cannot be used: ${problem}.`);
+    };
+    if (!image || typeof image !== 'object') fail('it is not an image prepared with pdfImage');
+    if (!isSize(image.width) || !isSize(image.height)) fail('its width and height must be whole numbers above zero');
+    if (!FILTERS.includes(image.filter)) fail('its filter must be DCTDecode or FlateDecode');
+    if (!COLOUR_SPACES.includes(image.colourSpace))
+        fail('its colour space must be DeviceRGB, DeviceGray or DeviceCMYK');
+    if (!DEPTHS.includes(image.bitsPerComponent ?? 8)) fail('its bits per component must be 1, 2, 4, 8 or 16');
+    if (!(image.data instanceof Uint8Array) || !image.data.length) fail('it has no pixel data');
+    if (image.alpha !== undefined && !(image.alpha instanceof Uint8Array))
+        fail('its transparency must be a Uint8Array');
+}
 
 /** `#1f5f5b` or `#abc` as 0 to 1 components; anything else gives `fallback`. */
 export function parseColour(value: string | undefined, fallback: Rgb): Rgb {
@@ -26,62 +61,6 @@ export function parseColour(value: string | undefined, fallback: Rgb): Rgb {
     if (!hex) return fallback;
     const full = hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex;
     return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16) / 255) as unknown as Rgb;
-}
-
-/** Characters outside Latin-1 that the built-in encoding (WinAnsi) still has. */
-const WIN_ANSI: Record<string, number> = {
-    '–': 0x96,
-    '—': 0x97,
-    '‘': 0x91,
-    '’': 0x92,
-    '“': 0x93,
-    '”': 0x94,
-    '…': 0x85,
-};
-
-const byteOf = (char: string) => WIN_ANSI[char] ?? char.codePointAt(0)!;
-const printable = (code: number) => (code >= 32 && code < 127) || (code >= 160 && code <= 255) || code in REVERSE;
-const REVERSE = Object.fromEntries(Object.values(WIN_ANSI).map((code) => [code, true]));
-
-/** A PDF string literal in plain ASCII: other characters become octal escapes, or `?` if the font lacks them. */
-export function literal(text: string): string {
-    let out = '';
-    for (const char of text) {
-        const code = byteOf(char);
-        if (char === '(' || char === ')' || char === '\\') out += `\\${char}`;
-        else if (code >= 32 && code < 127) out += char;
-        else out += printable(code) ? `\\${code.toString(8)}` : '?';
-    }
-    return `(${out})`;
-}
-
-// Advance widths per 1000 units for ASCII 32 to 126, from Adobe's metrics for the two faces.
-const REGULAR =
-    '278 278 355 556 556 889 667 191 333 333 389 584 278 333 278 278 556 556 556 556 556 556 556 556 556 556 278 278 584 584 584 556 1015 667 667 722 722 667 611 778 722 278 500 667 556 833 722 778 667 778 722 667 611 722 667 944 667 667 611 278 278 278 469 556 333 556 556 500 556 556 278 556 556 222 222 500 222 833 556 556 556 556 333 500 278 556 500 722 500 500 500 334 260 334 584';
-const BOLD =
-    '278 333 474 556 556 889 722 238 333 333 389 584 278 333 278 278 556 556 556 556 556 556 556 556 556 556 333 333 584 584 584 611 975 722 722 722 722 667 611 778 722 278 556 722 611 833 722 778 667 778 722 667 611 722 667 944 667 667 611 333 278 333 584 556 333 556 611 556 611 556 333 611 611 278 278 556 278 889 611 611 611 611 389 556 333 611 556 778 556 556 500 389 280 389 584';
-const WIDTHS = [REGULAR, BOLD].map((table) => table.split(' ').map(Number));
-const OTHER: Record<string, number> = { '—': 1000, '…': 1000, '·': 278, '’': 250, '‘': 250 };
-
-/** How wide `text` prints at `size` points. */
-export function textWidth(text: string, size: number, bold = false): number {
-    let units = 0;
-    for (const char of text) units += WIDTHS[bold ? 1 : 0]![char.charCodeAt(0) - 32] ?? OTHER[char] ?? 556;
-    return (units * size) / 1000;
-}
-
-/** Breaks prose at spaces so no line is wider than `maxWidth` points. */
-export function wrapText(text: string, size: number, maxWidth: number): string[] {
-    const lines: string[] = [];
-    let line = '';
-    for (const word of text.split(/\s+/).filter(Boolean)) {
-        const next = line ? `${line} ${word}` : word;
-        if (line && textWidth(next, size) > maxWidth) {
-            lines.push(line);
-            line = word;
-        } else line = next;
-    }
-    return line ? [...lines, line] : lines;
 }
 
 export interface TextStyle {
@@ -94,12 +73,12 @@ export interface TextStyle {
 const n = (value: number) => String(Math.round(value * 100) / 100);
 const rgb = (colour: Rgb) => colour.map((part) => n(part)).join(' ');
 
-/** Collects drawing instructions for the page. Coordinates are points from the bottom-left corner. */
+/** Collects drawing instructions for one page. Coordinates are points from the bottom-left corner. */
 export function createPage() {
     const ops: string[] = [];
     return {
         ops,
-        /** `x` is the left edge, or the right edge when `align` is `"right"`; `y` is the baseline. */
+        /** One line of text. `x` is the left edge, or the right edge when `align` is `"right"`; `y` is the baseline. */
         text(
             value: string,
             x: number,
@@ -124,23 +103,30 @@ export function createPage() {
     };
 }
 
-/** Assembles the file: the page's instructions, the optional image, and the index of where each object starts. */
+/** One page's drawing surface. */
+export type Page = ReturnType<typeof createPage>;
+
+/**
+ * Assembles the file: each page's instructions, the optional image, and the index of where each
+ * object starts. A one-page document numbers its objects as it always has; further pages follow.
+ */
 export function buildPdf({
-    ops,
+    pages,
     image,
     title,
     author,
 }: {
-    ops: string[];
+    /** The instructions for each page, in order. At least one page is written. */
+    pages: string[][];
     image?: PdfImage;
     title: string;
     author?: string;
 }): Uint8Array {
-    const encoder = new TextEncoder();
+    if (image) assertPdfImage(image);
     const chunks: Uint8Array[] = [];
     let length = 0;
     const write = (part: string | Uint8Array) => {
-        const bytes = typeof part === 'string' ? encoder.encode(part) : part;
+        const bytes = typeof part === 'string' ? utf8Encode(part) : part;
         chunks.push(bytes);
         length += bytes.length;
     };
@@ -156,35 +142,46 @@ export function buildPdf({
         write('endobj\n');
     };
     const font = (name: string) => `<< /Type /Font /Subtype /Type1 /BaseFont /${name} /Encoding /WinAnsiEncoding >>`;
-    const content = encoder.encode(ops.join('\n'));
+    const contents = (pages.length ? pages : [[]]).map((ops) => utf8Encode(ops.join('\n')));
     const xobject = image ? ' /XObject << /Im1 8 0 R >>' : '';
+    // Objects 1 to 7 are fixed, then the image and its mask; each later page is a pair after those.
+    const later = 8 + (image ? 1 : 0) + (image?.alpha ? 1 : 0);
+    const pageObject = (index: number) => (index ? later + (index - 1) * 2 : 3);
+    const page = (index: number) =>
+        object(
+            `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE.width} ${PAGE.height}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >>${xobject} >> /Contents ${index ? pageObject(index) + 1 : 6} 0 R >>`,
+        );
+    const content = (index: number) => object(`<< /Length ${contents[index]!.length} >>`, contents[index]);
+    const kids = contents.map((_, index) => `${pageObject(index)} 0 R`).join(' ');
 
     write('%PDF-1.4\n');
     object('<< /Type /Catalog /Pages 2 0 R >>');
-    object('<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-    object(
-        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE.width} ${PAGE.height}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >>${xobject} >> /Contents 6 0 R >>`,
-    );
+    object(`<< /Type /Pages /Kids [${kids}] /Count ${contents.length} >>`);
+    page(0);
     object(font('Helvetica'));
     object(font('Helvetica-Bold'));
-    object(`<< /Length ${content.length} >>`, content);
+    content(0);
     object(
-        `<< /Title ${literal(title)}${author ? ` /Author ${literal(author)}` : ''} /Producer (property-calculators) >>`,
+        `<< /Title ${infoString(title)}${author ? ` /Author ${infoString(author)}` : ''} /Producer (property-calculators) >>`,
     );
     if (image) {
-        const shared = `/Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /BitsPerComponent 8`;
+        const shared = `/Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height}`;
         // Adobe's CMYK JPEGs store their inks inverted.
         const decode = image.colourSpace === 'DeviceCMYK' ? ' /Decode [1 0 1 0 1 0 1 0]' : '';
         const mask = image.alpha ? ' /SMask 9 0 R' : '';
         object(
-            `<< ${shared} /ColorSpace /${image.colourSpace}${decode} /Filter /${image.filter}${mask} /Length ${image.data.length} >>`,
+            `<< ${shared} /BitsPerComponent ${image.bitsPerComponent ?? 8} /ColorSpace /${image.colourSpace}${decode} /Filter /${image.filter}${mask} /Length ${image.data.length} >>`,
             image.data,
         );
         if (image.alpha)
             object(
-                `<< ${shared} /ColorSpace /DeviceGray /Filter /FlateDecode /Length ${image.alpha.length} >>`,
+                `<< ${shared} /BitsPerComponent 8 /ColorSpace /DeviceGray /Filter /FlateDecode /Length ${image.alpha.length} >>`,
                 image.alpha,
             );
+    }
+    for (let index = 1; index < contents.length; index++) {
+        page(index);
+        content(index);
     }
 
     const xref = length;

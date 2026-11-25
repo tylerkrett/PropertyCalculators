@@ -11,13 +11,14 @@ import {
 } from '../overpayment/index';
 import {
     amountText,
-    Hints,
     MoneyField,
     NumberField,
+    oneOf,
     parseAmount,
     parseNumber,
     ResultRows,
     SelectField,
+    Status,
 } from './fields';
 import { type BaseProps, PdfButton, type PdfProp, slots, Styles } from './shared';
 
@@ -66,6 +67,7 @@ export function RemortgageCalculator({
     ...rest
 }: RemortgageCalculatorProps) {
     const id = useId();
+    const statusId = `${id}status`;
     const cx = slots(classNames, !unstyled && 'pc-styled', 'pc-remortgage', className);
     const [balanceText, setBalanceText] = useState(amountText(defaultBalance));
     const [currentRate, setCurrentRate] = useState(rateText(defaultCurrentRate));
@@ -73,21 +75,31 @@ export function RemortgageCalculator({
     const [term, setTerm] = useState(String(defaultTermYears));
     const [feeText, setFeeText] = useState(amountText(defaultProductFee));
     const [chargeText, setChargeText] = useState(amountText(defaultEarlyRepaymentCharge));
-    const [feePayment, setFeePayment] = useState<FeePayment>(defaultFeePayment);
+    const [feePayment, setFeePayment] = useState<FeePayment>(() =>
+        oneOf(FEE_PAYMENTS, defaultFeePayment, REMORTGAGE_DEFAULTS.feePayment),
+    );
     const [fixedYears, setFixedYears] = useState(String(defaultFixedYears));
 
+    // Memoised on the numbers, not the text, so retyping 200000 as 200,000 reports nothing new.
+    const balance = parseAmount(balanceText, Number.NaN);
+    const current = parseNumber(currentRate, Number.NaN);
+    const next = parseNumber(newRate, Number.NaN);
+    const termYears = parseNumber(term, Number.NaN);
+    const productFee = parseAmount(feeText, 0);
+    const earlyRepaymentCharge = parseAmount(chargeText, 0);
+    const fixed = parseNumber(fixedYears, Number.NaN);
     const input = useMemo(
         () => ({
-            balance: parseAmount(balanceText, Number.NaN),
-            currentRate: parseNumber(currentRate, Number.NaN),
-            newRate: parseNumber(newRate, Number.NaN),
-            termYears: parseNumber(term, Number.NaN),
-            productFee: parseAmount(feeText, 0),
-            earlyRepaymentCharge: parseAmount(chargeText, 0),
+            balance,
+            currentRate: current,
+            newRate: next,
+            termYears,
+            productFee,
+            earlyRepaymentCharge,
             feePayment,
-            fixedYears: parseNumber(fixedYears, Number.NaN),
+            fixedYears: fixed,
         }),
-        [balanceText, currentRate, newRate, term, feeText, chargeText, feePayment, fixedYears],
+        [balance, current, next, termYears, productFee, earlyRepaymentCharge, feePayment, fixed],
     );
     const { summary, error } = useMemo(() => getRemortgageSummary(input), [input]);
 
@@ -113,7 +125,7 @@ export function RemortgageCalculator({
         <div {...rest} data-theme={theme} className={cx('root')}>
             <Styles unstyled={unstyled} inlineStyles={inlineStyles} />
 
-            <div className={cx('form')} data-layout="grid">
+            <div className={cx('form')} data-layout="grid" aria-describedby={error ? statusId : undefined}>
                 <MoneyField
                     cx={cx}
                     id={`${id}balance`}
@@ -159,18 +171,18 @@ export function RemortgageCalculator({
                 />
             </div>
 
-            {summary ? (
+            <Status cx={cx} id={statusId} error={error} headline={summary?.rows[0]} />
+
+            {summary && (
                 <>
                     <ResultRows cx={cx} rows={summary.rows} />
                     <PdfButton
                         pdf={pdf}
                         filename={`remortgage-${input.balance}.pdf`}
-                        className={cx('download')}
+                        cx={cx}
                         make={(api, options) => api.remortgagePdf(input, options)}
                     />
                 </>
-            ) : (
-                <Hints cx={cx} lines={[error]} />
             )}
         </div>
     );

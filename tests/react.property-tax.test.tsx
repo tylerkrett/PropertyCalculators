@@ -53,7 +53,7 @@ describe('PropertyTaxCalculator', () => {
         expect(markup).toContain(item('Actual rate', '9.53%'));
         expect(markup).toContain('£145,001 – £250,000');
         expect(markup).toContain(
-            '<p class="pc-hint" role="status">The Additional Dwelling Supplement is 8% of the whole price, on top of the tax from the bands.</p>',
+            '<p class="pc-hint">The Additional Dwelling Supplement is 8% of the whole price, on top of the tax from the bands.</p>',
         );
         expect(html(<PropertyTaxCalculator defaultCountry="scotland" defaultPrice={300_000} />)).not.toContain(
             'data-key="supplement"',
@@ -110,7 +110,9 @@ describe('PropertyTaxCalculator', () => {
 
     it('asks for a price when there is none, or a lower one when it is too high', () => {
         const markup = html(<PropertyTaxCalculator />);
-        expect(markup).toContain('<p class="pc-hint" role="status">Enter a price to see the tax to pay.</p>');
+        expect(markup).toContain(
+            'class="pc-status" role="status" data-state="error">Enter a price to see the tax to pay.</p>',
+        );
         expect(markup).not.toContain('<dl');
         expect(html(<PropertyTaxCalculator defaultPrice={2_000_000_000} />)).toContain('Enter a lower price.');
     });
